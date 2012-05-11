@@ -19,10 +19,21 @@ public class SerialRowId implements RowId, Externalizable {
     private String str;
     private int hashCode;
 
-    public SerialRowId(RowId rowId) throws SQLException {
+    public SerialRowId(){
+    }
+    
+   
+    public SerialRowId(RowId rowId, String str) throws SQLException {
         bytes = rowId.getBytes();
-        str = rowId.toString();
+        this.str = str;
         hashCode = rowId.hashCode();
+    }
+    
+    public SerialRowId(RowId rowId) throws SQLException {
+    	this(rowId, rowId.toString());
+//        bytes = rowId.getBytes();
+//        str = rowId.toString();
+//        hashCode = rowId.hashCode();
     }
 
     public boolean equals(Object o) {

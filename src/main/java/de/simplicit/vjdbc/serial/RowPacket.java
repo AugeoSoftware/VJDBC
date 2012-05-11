@@ -203,7 +203,7 @@ public class RowPacket implements Externalizable {
                     break;
 
                 case ORACLE_ROW_ID:
-                    _flattenedColumnsValues[internalIndex].setObject(_rowCount, new SerialRowId(rs.getRowId(i)));
+                    _flattenedColumnsValues[internalIndex].setObject(_rowCount, new SerialRowId(rs.getRowId(i), rs.getString(i)));
                     break;
 
                     // what oracle does instead of SQLXML in their 1.6 driver,
