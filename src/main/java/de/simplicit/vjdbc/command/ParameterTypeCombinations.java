@@ -65,6 +65,7 @@ public class ParameterTypeCombinations {
     };
 
     // Single
+    public static final int VOID = 0;
     public static final int BOL = 1;
     public static final int INT = 2;
     public static final int STR = 3;

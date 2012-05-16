@@ -892,7 +892,32 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
         }
     }
 
-
-
     /* end JDBC4 support */
+
+    /* start JDK7 support */
+    public <T> T getObject(int parameterIndex, Class<T> clazz)
+        throws SQLException {
+        try {
+            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetObjectCommand(parameterIndex, clazz));
+            Object transportee = st.getTransportee();
+            checkTransporteeForStreamingResultSet(transportee);
+            return (T)transportee;
+        } catch(Exception e) {
+            throw SQLExceptionHelper.wrap(e);
+        }
+    }
+
+    public <T> T getObject(String parameterName, Class<T> clazz)
+        throws SQLException {
+        try {
+            CallableStatementGetObjectCommand cmd = new CallableStatementGetObjectCommand(parameterName, clazz);
+            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
+            Object transportee = st.getTransportee();
+            checkTransporteeForStreamingResultSet(transportee);
+            return (T)transportee;
+        } catch(Exception e) {
+            throw SQLExceptionHelper.wrap(e);
+        }
+    }
+    /* end JDK7 support */
 }

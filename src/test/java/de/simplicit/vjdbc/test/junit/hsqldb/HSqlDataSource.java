@@ -9,6 +9,8 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.logging.Logger;
 
 public class HSqlDataSource implements DataSource {
     public HSqlDataSource() throws SQLException {
@@ -47,5 +49,9 @@ public class HSqlDataSource implements DataSource {
 
     public <T> T unwrap(Class<T> iface) throws SQLException {
         return (T)this;
+    }
+
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException("getParentLogger");
     }
 }

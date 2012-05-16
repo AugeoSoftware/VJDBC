@@ -914,4 +914,23 @@ public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMeta
         return (T)this;
     }
     /* end JDBC4 support */
+
+    /* start JDK7 support */
+    public ResultSet getPseudoColumns(
+        String catalog,
+        String schemaPattern,
+        String tableNamePattern,
+        String columnNamePattern)
+        throws SQLException
+    {
+        return queryResultSet(CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getPseudoColumns", new Object[] { catalog,
+                schemaPattern, tableNamePattern, columnNamePattern },
+                ParameterTypeCombinations.STRSTRSTRSTR));
+    }
+
+    public boolean generatedKeyAlwaysReturned() throws SQLException {
+        return _sink.processWithBooleanResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
+                "generatedKeyAlwaysReturned"));
+    }
+    /* end JDK7 support */
 }

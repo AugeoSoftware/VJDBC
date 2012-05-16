@@ -23,4 +23,6 @@ public interface ConnectionContext {
     String getCharset();
     // Resolve and check query
     String resolveOrCheckQuery(String sql) throws SQLException;
+    // convenience method to remove all related JdbcObjects from this connection
+    void closeAllRelatedJdbcObjects() throws SQLException;
 }

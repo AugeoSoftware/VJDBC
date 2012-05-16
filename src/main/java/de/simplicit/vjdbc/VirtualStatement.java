@@ -22,6 +22,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     protected StreamingResultSet _currentResultSet;
     protected int _resultSetType;
     protected boolean _isClosed = false;
+    protected boolean _isCloseOnCompletion = false;
 
     public VirtualStatement(UIDEx reg, Connection connection, DecoratedCommandSink theSink, int resultSetType) {
         super(reg, theSink);
@@ -293,4 +294,14 @@ public class VirtualStatement extends VirtualBase implements Statement {
         return (T)this;
     }
     /* end JDBC4 support */
+
+    /* start JDK7 support */
+    public void closeOnCompletion() throws SQLException {
+        _isCloseOnCompletion = true;
+    }
+
+    public boolean isCloseOnCompletion() throws SQLException {
+        return _isCloseOnCompletion;
+    }
+    /* end JDK7 support */
 }

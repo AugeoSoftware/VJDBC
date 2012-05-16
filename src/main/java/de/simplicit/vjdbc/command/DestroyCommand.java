@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Method;
+import java.sql.Connection;
 import java.sql.SQLException;
 
 public class DestroyCommand implements Command {
@@ -29,6 +30,11 @@ public class DestroyCommand implements Command {
         _interfaceType = interfaceType;
     }
 
+    public DestroyCommand(Long uid, int interfaceType) {
+    	this._uid = uid;
+    	this._interfaceType = interfaceType;
+    }
+    
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeLong(_uid.longValue());
         out.writeInt(_interfaceType);
@@ -40,6 +46,21 @@ public class DestroyCommand implements Command {
     }
 
     public Object execute(Object target, ConnectionContext ctx) throws SQLException {
+    	/*
+    	 * if we are trying to close a Connection, we also need to close all the other associated
+    	 * JDBC objects, such as ResultSet, Statements, etc.
+    	 */
+    	if(target instanceof Connection) {
+    		if(_logger.isDebugEnabled()) {
+    			_logger.debug("******************************************************");
+    			_logger.debug("Destroy command for Connection found!");
+    			_logger.debug("destroying and closing all related JDBC objects first.");
+    			_logger.debug("******************************************************");
+    		}
+    		ctx.closeAllRelatedJdbcObjects();
+    	}
+    	// now we are ready to go on and close this connection
+    	
         Object removed = ctx.removeJDBCObject(_uid);
 
         // Check for identity
@@ -56,6 +77,9 @@ public class DestroyCommand implements Command {
                 }
             } catch(NoSuchMethodException e) {
                 // Object doesn't support close()
+            	if(_logger.isDebugEnabled()) {
+            		_logger.debug("close() not supported");
+            	}
             } catch(Exception e) {
                 if(_logger.isDebugEnabled()) {
                     _logger.debug("Invocation of close() failed", e);

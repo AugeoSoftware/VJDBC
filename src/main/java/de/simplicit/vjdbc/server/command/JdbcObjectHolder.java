@@ -9,17 +9,23 @@ import de.simplicit.vjdbc.serial.CallingContext;
 class JdbcObjectHolder {
     private Object _jdbcObject;
     private CallingContext _callingContext;
+    private int _jdbcInterfaceType;
     
-    JdbcObjectHolder(Object jdbcObject, CallingContext ctx) {
-        _jdbcObject = jdbcObject;
-        _callingContext = ctx;
+    JdbcObjectHolder(Object jdbcObject, CallingContext ctx, int _jdbcInterfaceType) {
+        this._jdbcObject = jdbcObject;
+        this._callingContext = ctx;
+        this._jdbcInterfaceType = _jdbcInterfaceType;
     }
     
     CallingContext getCallingContext() {
-        return _callingContext;
+        return this._callingContext;
     }
 
     Object getJdbcObject() {
-        return _jdbcObject;
+        return this._jdbcObject;
+    }
+    
+    int getJdbcInterfaceType() {
+    	return this._jdbcInterfaceType;
     }
 }

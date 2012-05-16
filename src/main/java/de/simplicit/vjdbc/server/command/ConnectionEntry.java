@@ -7,6 +7,8 @@ package de.simplicit.vjdbc.server.command;
 import de.simplicit.vjdbc.ProxiedObject;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
+import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.JdbcInterfaceType;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
 import de.simplicit.vjdbc.command.ResultSetProducerCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
@@ -19,10 +21,14 @@ import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.*;
 
@@ -58,7 +64,7 @@ class ConnectionEntry implements ConnectionContext {
         _clientInfo = clientInfo;
         _uid = connuid;
         // Put the connection into the JDBC-Object map
-        _jdbcObjects.put(connuid, new JdbcObjectHolder(conn, ctx));
+        _jdbcObjects.put(connuid, new JdbcObjectHolder(conn, ctx, JdbcInterfaceType.CONNECTION));
     }
 
     void close() {
@@ -77,6 +83,24 @@ class ConnectionEntry implements ConnectionContext {
         }
     }
 
+    public void closeAllRelatedJdbcObjects() throws SQLException {
+    	Set<Long> keys = null;
+    	synchronized(_jdbcObjects) {
+    		keys = new HashSet<Long>(_jdbcObjects.keySet());
+    	}
+    	if(keys != null) {
+	    	for(Long key: keys) {
+	    		JdbcObjectHolder jdbcObject = _jdbcObjects.get(key);
+	    		// don't act on the Connection itself - this will be done elsewhere
+	    		if(jdbcObject.getJdbcInterfaceType() == JdbcInterfaceType.CONNECTION)
+	    			continue;
+	    		// create a DestroyCommand and act on it
+	    		Command destroy = new DestroyCommand(key, jdbcObject.getJdbcInterfaceType());
+	    		destroy.execute(jdbcObject.getJdbcObject(), this);
+	    	}
+    	}
+    }
+    
     boolean hasJdbcObjects() {
         return !_jdbcObjects.isEmpty();
     }
@@ -107,7 +131,8 @@ class ConnectionEntry implements ConnectionContext {
     }
 
     public void addJDBCObject(Long key, Object partner) {
-        _jdbcObjects.put(key, new JdbcObjectHolder(partner, null));
+    	int _jdbcInterfaceType = getJdbcInterfaceTypeFromObject(partner);
+        _jdbcObjects.put(key, new JdbcObjectHolder(partner, null, _jdbcInterfaceType));
     }
 
     public Object removeJDBCObject(Long key) {
@@ -169,7 +194,8 @@ class ConnectionEntry implements ConnectionContext {
 
                     if(uidResult != null) {
                         // put it in the JDBC-Object-Table
-                        _jdbcObjects.put(uidResult.getUID(), new JdbcObjectHolder(result, ctx));
+                    	int _jdbcInterfaceType = getJdbcInterfaceTypeFromObject(result);
+                        _jdbcObjects.put(uidResult.getUID(), new JdbcObjectHolder(result, ctx, _jdbcInterfaceType));
                         if(_logger.isDebugEnabled()) {
                             _logger.debug("Registered " + result.getClass().getName() + " with UID " + uidResult);
                         }
@@ -306,7 +332,7 @@ class ConnectionEntry implements ConnectionContext {
         // Remember the ResultSet and put the UID in the StreamingResultSet
         UIDEx uid = new UIDEx();
         srs.setRemainingResultSetUID(uid);
-        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, _connectionConfiguration, lastPartReached), ctx));
+        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, _connectionConfiguration, lastPartReached), ctx, JdbcInterfaceType.RESULTSETHOLDER));
         if(_logger.isDebugEnabled()) {
             _logger.debug("Registered ResultSet with UID " + uid.getUID());
         }
@@ -348,5 +374,28 @@ class ConnectionEntry implements ConnectionContext {
         if(_connectionConfiguration.getQueryFilters() != null) {
             _connectionConfiguration.getQueryFilters().checkAgainstFilters(sql);
         }
+    }
+    
+    private int getJdbcInterfaceTypeFromObject(Object jdbcObject) {
+    	int _jdbcInterfaceType = 0;
+    	if(jdbcObject == null) {
+    		return _jdbcInterfaceType;
+    	}
+    	if(jdbcObject instanceof CallableStatement) {
+    		_jdbcInterfaceType = JdbcInterfaceType.CALLABLESTATEMENT;
+    	} else if(jdbcObject instanceof Connection) {
+    		_jdbcInterfaceType = JdbcInterfaceType.CONNECTION;    		
+    	} else if(jdbcObject instanceof DatabaseMetaData) {
+    		_jdbcInterfaceType = JdbcInterfaceType.DATABASEMETADATA;
+    	} else if(jdbcObject instanceof PreparedStatement) {
+    		_jdbcInterfaceType = JdbcInterfaceType.PREPAREDSTATEMENT;
+    	} else if(jdbcObject instanceof Savepoint) {
+    		_jdbcInterfaceType = JdbcInterfaceType.SAVEPOINT;
+    	} else if(jdbcObject instanceof Statement) {
+    		_jdbcInterfaceType = JdbcInterfaceType.STATEMENT;
+    	} else if(jdbcObject instanceof ResultSetHolder) {
+    		_jdbcInterfaceType = JdbcInterfaceType.RESULTSETHOLDER;
+    	}
+    	return _jdbcInterfaceType;
     }
 }

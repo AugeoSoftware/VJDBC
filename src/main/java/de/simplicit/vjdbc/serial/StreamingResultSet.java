@@ -171,6 +171,9 @@ public class StreamingResultSet implements ResultSet, Externalizable {
             }
             _remainingResultSet = null;
         }
+        if (_statement.isCloseOnCompletion()) {
+            _statement.close();
+        }
     }
 
     public boolean wasNull() throws SQLException {
@@ -1263,6 +1266,14 @@ public class StreamingResultSet implements ResultSet, Externalizable {
 
     public Object getObject(String colName, Map map) throws SQLException {
         throw new UnsupportedOperationException("getObject");
+    }
+
+    public <T> T getObject(String columnName, Class<T> clazz) {
+        throw new UnsupportedOperationException("getObject(String, Class)");
+    }
+
+    public <T> T getObject(int columnIndex, Class<T> clazz) {
+        throw new UnsupportedOperationException("getObject(int, Class)");
     }
 
     public Ref getRef(String colName) throws SQLException {

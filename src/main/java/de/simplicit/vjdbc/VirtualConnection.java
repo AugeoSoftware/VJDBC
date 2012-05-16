@@ -16,6 +16,7 @@ import java.sql.*;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 
 public class VirtualConnection extends VirtualBase implements Connection {
     private static Log _logger = LogFactory.getLog(VirtualConnection.class);
@@ -480,4 +481,40 @@ public class VirtualConnection extends VirtualBase implements Connection {
         return (T)this;
     }
     /* end JDBC4 support */
+
+    /* start JDK7 support */
+    public void setSchema(String schema) throws SQLException {
+        _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "setSchema", new Object[]{ schema },
+            ParameterTypeCombinations.STR), true);
+    }
+
+    public String getSchema() throws SQLException {
+        return (String)_sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "getSchema",
+                new Object[]{ }, 0), true);
+    }
+
+    public void abort(Executor executor) throws SQLException {
+        Runnable r = new Runnable() {
+                public void run() {
+                    try {
+                        close();
+                    } catch (SQLException e) {
+                        _logger.info(e.getMessage(), e);
+                    }
+                }
+            };
+        executor.execute(r);
+    }
+
+    public void setNetworkTimeout(Executor executor, int milliseconds)
+        throws SQLException {
+        // unsupported due to complexities of providing the executor to the
+        // engine driver on the other side of the connection
+        throw new UnsupportedOperationException("setNetworkTimeout");
+    }
+
+    public int getNetworkTimeout() throws SQLException {
+        return _sink.processWithIntResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "getNetworkTimeout"));
+    }
+    /* end JDK7 support */
 }
