@@ -77,10 +77,10 @@ public class SerialSQLXML implements SQLXML, Externalizable {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeUTF(xml.toString());
+        out.writeObject(xml.toString());
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        xml.append(in.readUTF());
+        xml.append((String)in.readObject());
     }
 }

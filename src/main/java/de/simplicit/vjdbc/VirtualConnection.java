@@ -375,9 +375,17 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     class ValidRunnable implements Runnable {
         public volatile boolean finished = false;
+        public volatile boolean result = false;
+        private final int timeout;
+        
+        public ValidRunnable(int timeout){
+        	this.timeout = timeout;
+        }
+        
         public void run() {
             try {
-                _sink.processWithBooleanResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "isValid"));
+                result = _sink.processWithBooleanResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "isValid", 
+                		new Object[]{Integer.valueOf(timeout)}, ParameterTypeCombinations.INT));
                 finished = true;
             } catch (SQLException sqle) {
                 _logger.info(sqle.getMessage(), sqle);
@@ -387,26 +395,30 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public boolean isValid(int timeout) throws SQLException {
 
-        if (timeout <= 0) {
+        if (timeout < 0) {
             throw new SQLException("invalid timeout value " + timeout);
         }
 
         // Schedule the keep alive timer task
-        ValidRunnable task = new ValidRunnable();
-        Thread t = new Thread(task);
-        long end = System.currentTimeMillis() + timeout;
-        long diff = timeout;
-        t.start();
-
-        while (!task.finished && diff > 0) {
-            try {
-                Thread.sleep(diff);
-            } catch (Exception e) {
-            }
-            diff = end - System.currentTimeMillis();
+        ValidRunnable task = new ValidRunnable(timeout);
+	    if (timeout>0){
+	        Thread t = new Thread(task);
+	        long end = System.currentTimeMillis() + timeout;
+	        long diff = timeout;
+	        t.start();
+	
+	        while (!task.finished && diff > 0) {
+	            try {
+	                Thread.sleep(diff);
+	            } catch (Exception e) {
+	            }
+	            diff = end - System.currentTimeMillis();
+	        }
+	
+        } else {
+        	task.run();
         }
-
-        return !task.finished;
+        return task.finished && task.result;
     }
 
     public void setClientInfo(String name, String value) throws SQLClientInfoException {

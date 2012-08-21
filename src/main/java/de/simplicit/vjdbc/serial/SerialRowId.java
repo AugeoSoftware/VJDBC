@@ -10,7 +10,6 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.sql.RowId;
 import java.sql.SQLException;
-import java.util.Map;
 
 public class SerialRowId implements RowId, Externalizable {
     static final long serialVersionUID = 3359567957805294836L;

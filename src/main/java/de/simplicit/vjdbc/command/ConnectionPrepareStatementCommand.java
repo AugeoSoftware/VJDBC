@@ -39,14 +39,14 @@ public class ConnectionPrepareStatementCommand implements Command {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeUTF(_sql);
+        out.writeObject(_sql);
         out.writeObject(_resultSetType);
         out.writeObject(_resultSetConcurrency);
         out.writeObject(_resultSetHoldability);
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        _sql = in.readUTF();
+        _sql = (String) in.readObject();
         _resultSetType = (Integer)in.readObject();
         _resultSetConcurrency = (Integer)in.readObject();
         _resultSetHoldability = (Integer)in.readObject();

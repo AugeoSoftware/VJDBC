@@ -26,12 +26,12 @@ public class StatementQueryCommand implements Command, ResultSetProducerCommand 
 
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeInt(_resultSetType);
-        out.writeUTF(_sql);
+        out.writeObject(_sql);
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _resultSetType = in.readInt();
-        _sql = in.readUTF();
+        _sql = (String) in.readObject();
     }
 
     public int getResultSetType() {

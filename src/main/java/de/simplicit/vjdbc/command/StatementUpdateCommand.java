@@ -23,11 +23,11 @@ public class StatementUpdateCommand implements Command {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeUTF(_sql);
+        out.writeObject(_sql);
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        _sql = in.readUTF();
+        _sql = (String) in.readObject();
     }
 
     public Object execute(Object target, ConnectionContext ctx) throws SQLException {

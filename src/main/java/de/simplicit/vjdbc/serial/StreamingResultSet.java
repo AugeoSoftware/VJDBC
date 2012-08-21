@@ -171,9 +171,9 @@ public class StreamingResultSet implements ResultSet, Externalizable {
             }
             _remainingResultSet = null;
         }
-        if (_statement.isCloseOnCompletion()) {
-            _statement.close();
-        }
+//        if (_statement.isCloseOnCompletion()) {
+//            _statement.close();
+//        }
     }
 
     public boolean wasNull() throws SQLException {
