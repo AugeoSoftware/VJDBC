@@ -19,4 +19,6 @@ public final class VJdbcProperties {
     // Factory class that create Servlet-Request enhancers which can put additional Request-Properties
     // in HTTP-Requests
     public static final String SERVLET_REQUEST_ENHANCER_FACTORY = "vjdbc.servlet.request_enhancer_factory";
+    
+    public static final String USER_NAME = "vjdbc.user.name";
 }

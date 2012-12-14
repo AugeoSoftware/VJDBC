@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.server.command.CommandProcessor;
@@ -161,7 +162,8 @@ public class ServletCommandSink extends HttpServlet {
                         // Delegate execution to the CommandProcessor
                         objectToReturn = _processor.process(connuid, uid, cmd, ctx);
                     } else if(method.equals(ServletCommandSinkIdentifier.CONNECT_COMMAND)) {
-                        String url = ois.readUTF();
+                        _logger.info("Connection request from "+httpServletRequest.getRemoteAddr());
+                    	String url = ois.readUTF();
                         Properties props = (Properties) ois.readObject();
                         Properties clientInfo = (Properties) ois.readObject();
                         CallingContext ctx = (CallingContext) ois.readObject();
@@ -170,6 +172,10 @@ public class ServletCommandSink extends HttpServlet {
 
                         if(connectionConfiguration != null) {
                             Connection conn = connectionConfiguration.create(props);
+                            Object userName = props.get(VJdbcProperties.USER_NAME);
+							if (userName!=null){
+								clientInfo.put(VJdbcProperties.USER_NAME, userName);
+							}
                             objectToReturn = _processor.registerConnection(conn, connectionConfiguration, clientInfo, ctx);
                         } else {
                             objectToReturn = new SQLException("VJDBC-Connection " + url + " not found");

@@ -5,6 +5,7 @@
 package de.simplicit.vjdbc.command;
 
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * This interface provides access to connection specific context for all commands
@@ -25,4 +26,6 @@ public interface ConnectionContext {
     String resolveOrCheckQuery(String sql) throws SQLException;
     // convenience method to remove all related JdbcObjects from this connection
     void closeAllRelatedJdbcObjects() throws SQLException;
+    // client info properties
+    Properties getClientInfo();
 }

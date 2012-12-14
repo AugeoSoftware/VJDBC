@@ -475,7 +475,7 @@ public class ConnectionConfiguration implements Executor {
                 _logger.warn("Property vjdbc.login.password is not set, " + "the login-handler might not be satisfied");
             }
 
-            _loginHandlerInstance.checkLogin(loginUser, loginPassword);
+            props.put(VJdbcProperties.USER_NAME, _loginHandlerInstance.checkLogin(loginUser, loginPassword));
 
             _logger.debug("... successful");
         }

@@ -19,7 +19,7 @@ public class SimpleLoginHandler implements LoginHandler {
         _properties.load(is);
     }
 
-    public void checkLogin(String user, String password) throws VJdbcException {
+    public String checkLogin(String user, String password) throws VJdbcException {
         if (user != null) {
             String pw = _properties.getProperty(user);
 
@@ -27,6 +27,7 @@ public class SimpleLoginHandler implements LoginHandler {
                 if (!pw.equals(password)) {
                     throw new VJdbcException("Password for user " + user + " is wrong");
                 }
+                return user;
             } else {
                 throw new VJdbcException("Unknown user " + user);
             }
