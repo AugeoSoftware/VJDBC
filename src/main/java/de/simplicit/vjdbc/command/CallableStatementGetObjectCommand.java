@@ -5,6 +5,7 @@
 package de.simplicit.vjdbc.command;
 
 import de.simplicit.vjdbc.serial.SerializableTransport;
+import de.simplicit.vjdbc.VirtualCallableStatement;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -87,7 +88,9 @@ public class CallableStatementGetObjectCommand implements Command {
             if(_map != null) {
                 result = cstmt.getObject(_parameterName, _map);
             } else if (_clazz != null) {
-                result = cstmt.getObject(_parameterName, _clazz);
+                result =
+                    ((VirtualCallableStatement)cstmt).getObject(_parameterName,
+                                                                _clazz);
             } else {
                 result = cstmt.getObject(_parameterName);
             }
@@ -95,7 +98,9 @@ public class CallableStatementGetObjectCommand implements Command {
             if(_map != null) {
                 result = cstmt.getObject(_index, _map);
             } else if (_clazz != null) {
-                result = cstmt.getObject(_index, _clazz);
+                result =
+                    ((VirtualCallableStatement)cstmt).getObject(_index,
+                                                                _clazz);
             } else {
                 result = cstmt.getObject(_index);
             }

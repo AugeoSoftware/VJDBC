@@ -39,6 +39,7 @@ public class CommandProcessor {
     private static Log _logger = LogFactory.getLog(CommandProcessor.class);
     private static CommandProcessor _singleton;
 
+    private static boolean closeConnectionsOnKill = true;
     private static long s_connectionId = 1;
     private Timer _timer = null;
     private Map<Long, ConnectionEntry> _connectionEntries =
@@ -51,6 +52,11 @@ public class CommandProcessor {
             installShutdownHook();
         }
         return _singleton;
+    }
+
+    public static void setDontCloseConnectionsOnKill()
+    {
+        closeConnectionsOnKill = false;
     }
 
     private CommandProcessor() {
@@ -139,16 +145,21 @@ public class CommandProcessor {
             _timer.cancel();
         }
 
-        // Copy ConnectionEntries for closing
-        ArrayList copyOfConnectionEntries = new ArrayList(_connectionEntries.values());
-        // and clear the map immediately
-        _connectionEntries.clear();
+        if (closeConnectionsOnKill) {
 
-        for(Iterator it = copyOfConnectionEntries.iterator(); it.hasNext();) {
-            ConnectionEntry connectionEntry = (ConnectionEntry) it.next();
-            synchronized(connectionEntry) {
-                connectionEntry.close();
+            // Copy ConnectionEntries for closing
+            ArrayList copyOfConnectionEntries = new ArrayList(_connectionEntries.values());
+            // and clear the map immediately
+            _connectionEntries.clear();
+
+            for(Iterator it = copyOfConnectionEntries.iterator(); it.hasNext();) {
+                ConnectionEntry connectionEntry = (ConnectionEntry) it.next();
+                synchronized(connectionEntry) {
+                    connectionEntry.close();
+                }
             }
+        } else {
+            _connectionEntries.clear();
         }
         _singleton = null;
 
