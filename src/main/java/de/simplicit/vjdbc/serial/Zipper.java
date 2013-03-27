@@ -18,7 +18,7 @@ public class Zipper {
 
     public static byte[] zip(byte[] b, int compressionMode) throws IOException {
         Deflater deflater = new Deflater(compressionMode);
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(4096);
         byte[] buf = new byte[1024];
         deflater.setInput(b);
         deflater.finish();
@@ -41,7 +41,7 @@ public class Zipper {
 
     public static byte[] unzip(byte[] b) throws IOException {
         Inflater inflater = new Inflater();
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(4096);
         byte[] buf = new byte[1024];
         inflater.setInput(b);
 

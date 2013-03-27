@@ -4,7 +4,7 @@
   <groupId>de.simplicit</groupId>
   <artifactId>vjdbc</artifactId>
   <packaging>jar</packaging>
-  <version>1.7.1-r72-Au03</version>
+  <version>1.7.1-r72-Au04</version>
   <name>VJDBC JDBC driver</name>
   <url>http://vjdbc.sourceforge.net/</url>
 
@@ -317,11 +317,11 @@
       <artifactId>commons-httpclient</artifactId>
       <version>3.0.1</version>
     </dependency>
-<!--    <dependency>
+   <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
       <version>1.1</version>
-    </dependency> -->
+    </dependency>
     <dependency>
       <groupId>commons-pool</groupId>
       <artifactId>commons-pool</artifactId>

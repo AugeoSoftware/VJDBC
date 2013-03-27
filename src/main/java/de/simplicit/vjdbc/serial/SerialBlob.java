@@ -18,7 +18,7 @@ public class SerialBlob implements Blob, Externalizable {
 
     public SerialBlob(Blob other) throws SQLException {
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
             InputStream is = other.getBinaryStream();
             byte[] buff = new byte[1024];
             int len;
@@ -49,7 +49,7 @@ public class SerialBlob implements Blob, Externalizable {
     }
 
     public void init(InputStream is) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         byte[] buff = new byte[1024];
         int len;
         while((len = is.read(buff)) > 0) {
@@ -59,7 +59,7 @@ public class SerialBlob implements Blob, Externalizable {
     }
 
     public void init(InputStream is, long length) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         byte[] buff = new byte[1024];
         int len;
         long toRead = length;
@@ -92,7 +92,7 @@ public class SerialBlob implements Blob, Externalizable {
         // very slow but gets around problems with the pos being represented
         // as long instead of an int in most java.io and other byte copying
         // APIs
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         for (long i = 0; i < length; ++i) {
             baos.write(_data[(int)(pos + i)]);
         }
@@ -136,7 +136,7 @@ public class SerialBlob implements Blob, Externalizable {
         // very slow but gets around problems with the pos being represented
         // as long instead of an int in most java.io and other byte copying
         // APIs
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         for (long i = 0; i < length; ++i) {
             baos.write(_data[(int)(i + pos)]);
         }
