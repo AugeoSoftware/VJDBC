@@ -73,7 +73,10 @@ public class SerialRowId implements RowId, Externalizable {
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         int len = in.readInt();
         bytes = new byte[len];
-        in.read(bytes);
+        int pos = 0, c;
+        while (pos<len && (c = in.read(bytes, pos, len-pos))>0){
+        	pos+=c;
+        }        
         str = in.readUTF();
         hashCode = in.readInt();
     }
