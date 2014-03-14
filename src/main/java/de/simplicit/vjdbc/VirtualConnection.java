@@ -425,9 +425,11 @@ public class VirtualConnection extends VirtualBase implements Connection {
         Properties clientProps = ClientInfo.getProperties(null);
         clientProps.put(name, value);
         try {
-            _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "setClientInfo",
-                new Object[]{ name, value },
-                ParameterTypeCombinations.STRSTR), true);
+            _sink.process(_objectUid, new ConnectionSetClientInfoCommand(name, value),
+//            		CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "setClientInfo",
+//                new Object[]{ name, value },
+//                ParameterTypeCombinations.STRSTR), 
+                true);
         } catch (SQLClientInfoException e) {
             throw e;
         } catch (SQLException sqle) {

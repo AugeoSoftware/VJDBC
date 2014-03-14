@@ -28,4 +28,6 @@ public interface ConnectionContext {
     void closeAllRelatedJdbcObjects() throws SQLException;
     // client info properties
     Properties getClientInfo();
+    // set client info 
+    void setClientInfo(String name, String value);
 }

@@ -15,14 +15,18 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import de.simplicit.vjdbc.Registerable;
 import de.simplicit.vjdbc.VJdbcException;
+import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
+import de.simplicit.vjdbc.command.ConnectionSetClientInfoCommand;
 import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.JdbcInterfaceType;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
@@ -42,7 +46,7 @@ public class CommandProcessor {
     private static boolean closeConnectionsOnKill = true;
     private static long s_connectionId = 1;
     private Timer _timer = null;
-    private Map<Long, ConnectionEntry> _connectionEntries =
+    private Map<Long, ConnectionEntry> _connectionEntries = 
         Collections.synchronizedMap(new HashMap<Long, ConnectionEntry>());
     private OcctConfiguration _occtConfig;
 
@@ -181,7 +185,11 @@ public class CommandProcessor {
                 try {
                     // StatementCancelCommand can be executed asynchronously to terminate
                     // a running query
-                    if(cmd instanceof StatementCancelCommand) {
+                	if (cmd instanceof ConnectionSetClientInfoCommand && 
+                			"kill_user_connections".equals(((ConnectionSetClientInfoCommand) cmd).getName())){
+                		killUserConnections(connentry);
+                	}else 
+                	if(cmd instanceof StatementCancelCommand) {
                         connentry.cancelCurrentStatementExecution(
                             connuid, uid, (StatementCancelCommand)cmd);
                     }
@@ -231,6 +239,30 @@ public class CommandProcessor {
         return result;
     }
 
+    private void killUserConnections(ConnectionEntry connectionEntry)  {
+    	String userName = connectionEntry.getClientInfo().getProperty(VJdbcProperties.USER_NAME);
+    	if (userName!=null){
+    		_logger.debug("Killing connections for user "+userName);
+    		synchronized(_connectionEntries){
+    			for (Map.Entry<Long, ConnectionEntry>me: _connectionEntries.entrySet()){
+    				ConnectionEntry ce = me.getValue();
+    				synchronized(ce){
+    					if (ce!=connectionEntry 
+    							&& userName.equals(ce.getClientInfo().getProperty(VJdbcProperties.USER_NAME))){
+    						
+    						try {
+    							DestroyCommand destroyCommand = new DestroyCommand(me.getKey(), JdbcInterfaceType.CONNECTION);
+    							destroyCommand.execute(ce.getJDBCObject(me.getKey()), ce);
+							} catch (SQLException e) {
+								_logger.info("Error on killing connection "+me.getKey(), e);
+							}
+    					}
+    				}    				
+    			}    			
+    		}
+    	}
+    }
+    
     /**
      * The orphaned connection collector task periodically checks the existing
      * connection entries for orphaned entries that means connections which

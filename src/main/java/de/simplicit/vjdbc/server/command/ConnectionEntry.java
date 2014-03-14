@@ -5,6 +5,7 @@
 package de.simplicit.vjdbc.server.command;
 
 import de.simplicit.vjdbc.ProxiedObject;
+import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.command.DestroyCommand;
@@ -109,6 +110,10 @@ class ConnectionEntry implements ConnectionContext {
         return _clientInfo;
     }
 
+    public void setClientInfo(String name, String value){
+    	_clientInfo.setProperty(name, value);
+    }
+    
     public boolean isActive() {
         return _active;
     }
@@ -272,7 +277,7 @@ class ConnectionEntry implements ConnectionContext {
             _logger.info("no statement with id " + uid + " to cancel");
         }
     }
-
+    
     public void traceConnectionStatistics() {
         _logger.info("  Connection ........... " + _connectionConfiguration.getId());
         _logger.info("  IP address ........... " + _clientInfo.getProperty("vjdbc-client.address", "n.a."));
