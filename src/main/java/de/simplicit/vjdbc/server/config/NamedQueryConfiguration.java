@@ -7,6 +7,8 @@ package de.simplicit.vjdbc.server.config;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import de.simplicit.vjdbc.command.ConnectionContext;
+
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -16,15 +18,15 @@ public class NamedQueryConfiguration {
     private static Log _logger = LogFactory.getLog(NamedQueryConfiguration.class);
     private Map _queryMap = new HashMap();
 
-    public Map getQueryMap() {
-        return _queryMap;
-    }
+//    public Map getQueryMap() {
+//        return _queryMap;
+//    }
 
     public void addEntry(String id, String sql) {
         _queryMap.put(id, sql);
     }
 
-    public String getSqlForId(String id) throws SQLException {
+    public String getSqlForId(ConnectionContext ctx, String id) throws SQLException {
         String result = (String)_queryMap.get(id);
         if(result != null) {
             return result;

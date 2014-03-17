@@ -367,7 +367,7 @@ class ConnectionEntry implements ConnectionContext {
 
     private String getNamedQuery(String id) throws SQLException {
         if(_connectionConfiguration.getNamedQueries() != null) {
-            return _connectionConfiguration.getNamedQueries().getSqlForId(id);
+            return _connectionConfiguration.getNamedQueries().getSqlForId(this, id);
         } else {
             String msg = "No named-queries are associated with this connection";
             _logger.error(msg);

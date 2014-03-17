@@ -24,6 +24,7 @@ import de.simplicit.vjdbc.Registerable;
 import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
+import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.command.ConnectionSetClientInfoCommand;
 import de.simplicit.vjdbc.command.DestroyCommand;
 import de.simplicit.vjdbc.command.JdbcInterfaceType;
@@ -185,10 +186,6 @@ public class CommandProcessor {
                 try {
                     // StatementCancelCommand can be executed asynchronously to terminate
                     // a running query
-                	if (cmd instanceof ConnectionSetClientInfoCommand && 
-                			"kill_user_connections".equals(((ConnectionSetClientInfoCommand) cmd).getName())){
-                		killUserConnections(connentry);
-                	}else 
                 	if(cmd instanceof StatementCancelCommand) {
                         connentry.cancelCurrentStatementExecution(
                             connuid, uid, (StatementCancelCommand)cmd);
@@ -239,8 +236,14 @@ public class CommandProcessor {
         return result;
     }
 
-    private void killUserConnections(ConnectionEntry connectionEntry)  {
-    	String userName = connectionEntry.getClientInfo().getProperty(VJdbcProperties.USER_NAME);
+    /**
+     * release all connections established by given user, except the given one.
+     * @param connectionEntry
+     * @param userName
+     * @return number of released connections
+     */
+    public int releaseUserConnections(ConnectionContext connectionEntry, String userName)  {
+    	int killedConnectionsCount = 0;
     	if (userName!=null){
     		_logger.debug("Killing connections for user "+userName);
     		synchronized(_connectionEntries){
@@ -253,6 +256,7 @@ public class CommandProcessor {
     						try {
     							DestroyCommand destroyCommand = new DestroyCommand(me.getKey(), JdbcInterfaceType.CONNECTION);
     							destroyCommand.execute(ce.getJDBCObject(me.getKey()), ce);
+    							killedConnectionsCount++;
 							} catch (SQLException e) {
 								_logger.info("Error on killing connection "+me.getKey(), e);
 							}
@@ -261,6 +265,7 @@ public class CommandProcessor {
     			}    			
     		}
     	}
+    	return killedConnectionsCount;
     }
     
     /**

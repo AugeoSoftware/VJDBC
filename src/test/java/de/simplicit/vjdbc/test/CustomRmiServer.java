@@ -29,9 +29,9 @@ public class CustomRmiServer {
             configHSql.setConnectionPooling(true);
             
             NamedQueryConfiguration namedQueryConfiguration = new NamedQueryConfiguration();
-            namedQueryConfiguration.getQueryMap().put("selectAllAddresses", "select * from Address");
-            namedQueryConfiguration.getQueryMap().put("selectAddress", "select * from Address where Id = ?");
-            namedQueryConfiguration.getQueryMap().put("updateAllAddresses", "update Address set lastname = 'Balla' where lastname = 'Billi'");
+            namedQueryConfiguration.addEntry("selectAllAddresses", "select * from Address");
+            namedQueryConfiguration.addEntry("selectAddress", "select * from Address where Id = ?");
+            namedQueryConfiguration.addEntry("updateAllAddresses", "update Address set lastname = 'Balla' where lastname = 'Billi'");
 
             configHSql.setNamedQueries(namedQueryConfiguration);
             vjdbcConfig.addConnection(configHSql);
