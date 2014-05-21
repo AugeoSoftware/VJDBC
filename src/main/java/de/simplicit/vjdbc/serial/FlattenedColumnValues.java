@@ -10,7 +10,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Array;
 
-class FlattenedColumnValues implements Externalizable {
+public class FlattenedColumnValues implements Externalizable {
     private static final long serialVersionUID = 3691039872299578672L;
     
     private Object _arrayOfValues;
@@ -23,6 +23,18 @@ class FlattenedColumnValues implements Externalizable {
      *
      */
     public FlattenedColumnValues() {
+    }
+    
+    FlattenedColumnValues(Object arrayOfValues, boolean[] nullFlags){
+    	_arrayOfValues = arrayOfValues;
+    	_nullFlags = nullFlags;
+    	Class componentType = _arrayOfValues.getClass().getComponentType();
+        if(componentType.isPrimitive()) {
+            _arrayAccessor = ArrayAccessors.getArrayAccessorForPrimitiveType(componentType);
+        }
+        else {
+            _arrayAccessor = ArrayAccessors.getObjectArrayAccessor();
+        }
     }
     
     FlattenedColumnValues(Class clazz, int size) {
@@ -126,4 +138,33 @@ class FlattenedColumnValues implements Externalizable {
     	    }
     	}
     }
+
+	Object getArrayOfValues() {
+		return _arrayOfValues;
+	}
+
+	boolean[] getNullFlags() {
+		return _nullFlags;
+	}
+	
+	void merge(FlattenedColumnValues fcv){
+		int length1 = Array.getLength(_arrayOfValues);
+		int length2 = Array.getLength(fcv._arrayOfValues);
+		int newCapacity = length1 + length2;
+		Object arrayOfValues = Array.newInstance(_arrayOfValues.getClass().getComponentType(), newCapacity);
+		System.arraycopy(_arrayOfValues, 0, arrayOfValues, 0, length1);
+		System.arraycopy(fcv._arrayOfValues, 0, arrayOfValues, length1, length2);
+		_arrayOfValues = arrayOfValues;
+		if (_nullFlags!=null || fcv._nullFlags!=null){
+			boolean[] nullFlags = new boolean[newCapacity];
+			if (_nullFlags!=null){
+				System.arraycopy(_nullFlags, 0, nullFlags, 0, length1);
+			}
+			if (fcv._nullFlags!=null){
+				System.arraycopy(fcv._nullFlags, 0, nullFlags, length1, length2);
+			}
+			_nullFlags = nullFlags;
+		}
+	}
+	
 }

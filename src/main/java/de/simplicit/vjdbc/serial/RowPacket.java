@@ -12,6 +12,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -19,7 +20,7 @@ import java.util.ArrayList;
  * A RowPacket contains the data of a part (or a whole) JDBC-ResultSet.
  */
 public class RowPacket implements Externalizable {
-    private static final int ORACLE_ROW_ID = -8;
+    static final int ORACLE_ROW_ID = -8;
     private static final int DEFAULT_ARRAY_SIZE = 100;
     static final long serialVersionUID = 6366194574502000718L;
 
@@ -30,8 +31,8 @@ public class RowPacket implements Externalizable {
     private boolean _lastPart = false;
 
     // Transient attributes
-    private transient FlattenedColumnValues[] _flattenedColumnsValues = null;
-    private transient ArrayList _rows = null;
+    private FlattenedColumnValues[] _flattenedColumnsValues = null;
+//    private transient ArrayList _rows = null;
     private transient int[] _columnTypes = null;
     private transient int _offset = 0;
     private transient int _maxrows = 0;
@@ -44,6 +45,14 @@ public class RowPacket implements Externalizable {
         _forwardOnly = forwardOnly;
     }
 
+    
+    RowPacket(boolean forwardOnly, boolean lastPart, int rowCount, FlattenedColumnValues[] flattenedColumnsValues){
+    	this._forwardOnly = forwardOnly;
+    	this._lastPart = lastPart;
+    	this._rowCount = rowCount;
+    	this._flattenedColumnsValues = flattenedColumnsValues;
+    }
+    
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeBoolean(_forwardOnly);
         out.writeBoolean(_lastPart);
@@ -57,20 +66,24 @@ public class RowPacket implements Externalizable {
         _forwardOnly = in.readBoolean();
         _lastPart = in.readBoolean();
         _rowCount = in.readInt();
-        if(_rowCount > 0) {
-            FlattenedColumnValues[] flattenedColumns = (FlattenedColumnValues[]) in.readObject();
-            _rows = new ArrayList(_rowCount);
-            for(int i = 0; i < _rowCount; i++) {
-                Object[] row = new Object[flattenedColumns.length];
-                for(int j = 0; j < flattenedColumns.length; j++) {
-                    row[j] = flattenedColumns[j].getValue(i);
-                }
-                _rows.add(row);
-            }
+        if (_rowCount>0){
+        	_flattenedColumnsValues = (FlattenedColumnValues[]) in.readObject();
         }
-        else {
-            _rows = new ArrayList();
-        }
+        
+//        if(_rowCount > 0) {
+//            FlattenedColumnValues[] flattenedColumns = (FlattenedColumnValues[]) in.readObject();
+//            _rows = new ArrayList(_rowCount);
+//            for(int i = 0; i < _rowCount; i++) {
+//                Object[] row = new Object[flattenedColumns.length];
+//                for(int j = 0; j < flattenedColumns.length; j++) {
+//                    row[j] = flattenedColumns[j].getValue(i);
+//                }
+//                _rows.add(row);
+//            }
+//        }
+//        else {
+//            _rows = new ArrayList();
+//        }
     }
 
     public Object[] get(int index) throws SQLException {
@@ -78,10 +91,15 @@ public class RowPacket implements Externalizable {
 
         if(adjustedIndex < 0) {
             throw new SQLException("Index " + index + " is below the possible index");
-        } else if(adjustedIndex >= _rows.size()) {
+        } else if(adjustedIndex >= _rowCount) {
             throw new SQLException("Index " + index + " is above the possible index");
         } else {
-            return (Object[]) _rows.get(adjustedIndex);
+        	// in Augeo each row is read only once, so there is no need to cache 
+        	Object[] row = new Object[_flattenedColumnsValues.length];
+        	for (int k=0; k<row.length; k++){
+        		row[k] = _flattenedColumnsValues[k].getValue(adjustedIndex);
+        	}
+        	return row;
         }
     }
 
@@ -264,6 +282,23 @@ public class RowPacket implements Externalizable {
             Class componentType = null;
 
             switch (columnType) {
+            case Types.NULL:
+            	componentType = Object.class;
+            	break;
+            	
+            case Types.CHAR:
+            case Types.VARCHAR:
+            case Types.LONGVARCHAR:
+            case Types.NCHAR:
+            case Types.NVARCHAR:
+            case Types.LONGNVARCHAR:
+            	componentType = String.class;
+            	break;
+            
+            case Types.NUMERIC:
+            case Types.DECIMAL:
+            	componentType = BigDecimal.class;
+            	break;
             case Types.BIT:
                 componentType = Boolean.TYPE;
                 break;
@@ -293,6 +328,46 @@ public class RowPacket implements Externalizable {
                 componentType = Double.TYPE;
                 break;
 
+            case Types.DATE:
+            	componentType = java.sql.Date.class;
+            	break;
+            case Types.TIME:
+            	componentType = java.sql.Time.class;
+            	break;
+            case Types.TIMESTAMP:
+            	componentType = java.sql.Timestamp.class;
+            	break;
+            case Types.BINARY:
+            case Types.VARBINARY:
+            case Types.LONGVARBINARY:
+            	componentType = byte[].class;
+            	break;
+            case Types.JAVA_OBJECT:
+            	componentType = SerialJavaObject.class;
+            	break;
+            case Types.CLOB:
+            	componentType = SerialClob.class;
+            	break;
+            case Types.NCLOB:
+            	componentType = SerialNClob.class;
+            	break;
+            case Types.BLOB:
+            	componentType = SerialBlob.class;
+            	break;
+            case Types.ARRAY:
+            	componentType = SerialArray.class;
+            	break;
+            case Types.STRUCT:
+            	componentType = SerialStruct.class;
+            	break;
+            case RowPacket.ORACLE_ROW_ID:
+            	componentType = SerialRowId.class;
+            	break;
+            case Types.SQLXML:
+            	componentType = SerialSQLXML.class;
+            	break;
+            	
+
             default:
                 if(JavaVersionInfo.use14Api) {
                     if(columnType == Types.BOOLEAN) {
@@ -314,10 +389,31 @@ public class RowPacket implements Externalizable {
         if(_forwardOnly) {
             _offset += _rowCount;
             _rowCount = rsp._rowCount;
-            _rows = rsp._rows;
+            //_rows = rsp._rows;
+            _flattenedColumnsValues = rsp._flattenedColumnsValues;
         } else {
-            _rows.addAll(rsp._rows);
-            _rowCount = _rows.size();
+//        	FlattenedColumnValues[] flattenedColumnsValues = new FlattenedColumnValues[_flattenedColumnsValues.length+rsp._flattenedColumnsValues.length];
+//        	System.arraycopy(_flattenedColumnsValues, 0, flattenedColumnsValues, 0, _flattenedColumnsValues.length);
+//        	System.arraycopy(rsp._flattenedColumnsValues, 0, flattenedColumnsValues, _flattenedColumnsValues.length, rsp._flattenedColumnsValues.length);
+//        	_flattenedColumnsValues = flattenedColumnsValues;
+//            _rowCount = flattenedColumnsValues.length;
+        	for (int i=0; i<_flattenedColumnsValues.length; i++){
+        		_flattenedColumnsValues[i].merge(rsp._flattenedColumnsValues[i]);
+        	}
+        	_rowCount += rsp._rowCount;
         }
     }
+
+	int getRowCount() {
+		return _rowCount;
+	}
+
+	boolean isForwardOnly() {
+		return _forwardOnly;
+	}
+
+	FlattenedColumnValues[] getFlattenedColumnsValues() {
+		return _flattenedColumnsValues;
+	}
+	
 }

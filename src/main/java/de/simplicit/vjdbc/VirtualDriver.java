@@ -39,6 +39,7 @@ import de.simplicit.vjdbc.servlet.RequestEnhancer;
 import de.simplicit.vjdbc.servlet.RequestEnhancerFactory;
 import de.simplicit.vjdbc.servlet.ServletCommandSinkJdkHttpClient;
 import de.simplicit.vjdbc.servlet.jakarta.ServletCommandSinkJakartaHttpClient;
+import de.simplicit.vjdbc.servlet.kryo.KryoServletCommandSinkJdkHttpClient;
 import de.simplicit.vjdbc.util.ClientInfo;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 
@@ -207,9 +208,13 @@ public final class VirtualDriver implements Driver {
             requestEnhancer = requestEnhancerFactory.create();
         }
 
-        // Decide here if we should use Jakarta-HTTP-Client
+        // Decide here if we should use Jakarta-HTTP-Client or Kryo Http Client
+        String useKryoHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_KRYO_HTTP_CLIENT);
         String useJakartaHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_JAKARTA_HTTP_CLIENT);
-        if(useJakartaHttpClient != null && useJakartaHttpClient.equals("true")) {
+        if (useKryoHttpClient!=null && useKryoHttpClient.equals("true")) {
+        	return new KryoServletCommandSinkJdkHttpClient(url, requestEnhancer);
+        } 
+        else if(useJakartaHttpClient != null && useJakartaHttpClient.equals("true")) {
             return new ServletCommandSinkJakartaHttpClient(url, requestEnhancer);
         }
         else {

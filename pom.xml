@@ -4,7 +4,7 @@
   <groupId>de.simplicit</groupId>
   <artifactId>vjdbc</artifactId>
   <packaging>jar</packaging>
-  <version>1.7.1-r72-Au07</version>
+  <version>1.7.1-r72-Au08</version>
   <name>VJDBC JDBC driver</name>
   <url>http://vjdbc.sourceforge.net/</url>
 
@@ -354,6 +354,12 @@
         <groupId>javax</groupId>
         <artifactId>javaee-api</artifactId>
         <version>6.0</version>
+    </dependency>
+
+    <dependency>
+        <groupId>com.esotericsoftware.kryo</groupId>
+        <artifactId>kryo</artifactId>
+        <version>2.24.0</version>
     </dependency>
 
   </dependencies>
