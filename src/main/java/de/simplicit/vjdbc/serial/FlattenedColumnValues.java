@@ -14,9 +14,9 @@ public class FlattenedColumnValues implements Externalizable {
     private static final long serialVersionUID = 3691039872299578672L;
     
     private Object _arrayOfValues;
-    private boolean[] _nullFlags;
+    private int[] _nullFlags = null;
     
-    private transient ArrayAccess _arrayAccessor;
+    private transient Class componentType;
     
     /**
      * Default constructor needed for Serialisation.
@@ -25,42 +25,25 @@ public class FlattenedColumnValues implements Externalizable {
     public FlattenedColumnValues() {
     }
     
-    FlattenedColumnValues(Object arrayOfValues, boolean[] nullFlags){
+    FlattenedColumnValues(Object arrayOfValues, int[] nullFlags){
     	_arrayOfValues = arrayOfValues;
     	_nullFlags = nullFlags;
-    	Class componentType = _arrayOfValues.getClass().getComponentType();
-        if(componentType.isPrimitive()) {
-            _arrayAccessor = ArrayAccessors.getArrayAccessorForPrimitiveType(componentType);
-        }
-        else {
-            _arrayAccessor = ArrayAccessors.getObjectArrayAccessor();
-        }
+    	componentType = _arrayOfValues.getClass().getComponentType();
     }
     
     FlattenedColumnValues(Class clazz, int size) {
         // Any of these types ? boolean, byte, char, short, int, long, float, and double
-        if(clazz.isPrimitive()) {
-            _arrayOfValues = Array.newInstance(clazz, size);
-            _nullFlags = new boolean[size];
-            _arrayAccessor = ArrayAccessors.getArrayAccessorForPrimitiveType(clazz);
-        }
-        else {
-            _arrayOfValues = Array.newInstance(clazz, size);
-            _nullFlags = null;
-            _arrayAccessor = ArrayAccessors.getObjectArrayAccessor();
-        }
+    	_arrayOfValues = Array.newInstance(clazz, size);
+    	componentType = clazz;
+    	if(clazz.isPrimitive()) {
+    		_nullFlags = new int[(size>>5) + 1];
+    	}
     }
     
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _arrayOfValues = in.readObject();
-        _nullFlags = (boolean[])in.readObject();
-        Class componentType = _arrayOfValues.getClass().getComponentType();
-        if(componentType.isPrimitive()) {
-            _arrayAccessor = ArrayAccessors.getArrayAccessorForPrimitiveType(componentType);
-        }
-        else {
-            _arrayAccessor = ArrayAccessors.getObjectArrayAccessor();
-        }
+        _nullFlags = (int[])in.readObject();
+        componentType = _arrayOfValues.getClass().getComponentType();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -111,12 +94,46 @@ public class FlattenedColumnValues implements Externalizable {
     void setIsNull(int index) {
         ensureCapacity(index + 1);
         if(_nullFlags != null) {
-            _nullFlags[index] = true;
+            int i = index>>5;
+            int m = 1<<(index & 31);
+            _nullFlags[i] = _nullFlags[i] | m;
         }
     }
     
     Object getValue(int index) {
-        return _arrayAccessor.getValue(_arrayOfValues, index, _nullFlags);
+        int i = index>>5;
+        int m = 1<<(index & 31);
+        if (_nullFlags!=null && (_nullFlags[i] & m)!=0){
+        	return null;
+        }
+        if (!componentType.isPrimitive()){
+        	return Array.get(_arrayOfValues, index);
+        } else if (componentType == Boolean.TYPE) {
+			boolean[] v = (boolean[]) _arrayOfValues;
+			return Boolean.valueOf(v[index]);
+		} else if (componentType == Byte.TYPE) {
+			byte[] v = (byte[]) _arrayOfValues;
+			return Byte.valueOf(v[index]);
+		}  else if (componentType == Short.TYPE) {
+			short[] v = (short[]) _arrayOfValues;
+			return Short.valueOf(v[index]);
+		} else if (componentType == Integer.TYPE) {
+			int[] v = (int[]) _arrayOfValues;
+			return Integer.valueOf(v[index]);
+		} else if (componentType == Long.TYPE) {
+			long[] v = (long[]) _arrayOfValues;
+			return Long.valueOf(v[index]);
+		} else if (componentType == Float.TYPE) {
+			float[] v = (float[]) _arrayOfValues;
+			return new Float(v[index]);					
+		} else if (componentType == Double.TYPE) {
+			double[] v = (double[]) _arrayOfValues;
+			return new Double(v[index]);
+		} else if (componentType == Character.TYPE) {
+			char[] v = (char[]) _arrayOfValues;
+			return Character.valueOf(v[i]);
+		}
+		return null;
     }
         
     void ensureCapacity(int minCapacity) {
@@ -132,8 +149,8 @@ public class FlattenedColumnValues implements Externalizable {
     	    _arrayOfValues = Array.newInstance(tmpArrayOfValues.getClass().getComponentType(), newCapacity);
     	    System.arraycopy(tmpArrayOfValues, 0, _arrayOfValues, 0, Array.getLength(tmpArrayOfValues));
     	    if(_nullFlags != null) {
-    	        boolean[] tmpNullFlags = _nullFlags;
-    	        _nullFlags = new boolean[newCapacity];
+    	        int[] tmpNullFlags = _nullFlags;
+    	        _nullFlags = new int[(newCapacity>>5) + 1];
     	        System.arraycopy(tmpNullFlags, 0, _nullFlags, 0, tmpNullFlags.length);
     	    }
     	}
@@ -143,28 +160,8 @@ public class FlattenedColumnValues implements Externalizable {
 		return _arrayOfValues;
 	}
 
-	boolean[] getNullFlags() {
+	int[] getNullFlags() {
 		return _nullFlags;
 	}
-	
-	void merge(FlattenedColumnValues fcv){
-		int length1 = Array.getLength(_arrayOfValues);
-		int length2 = Array.getLength(fcv._arrayOfValues);
-		int newCapacity = length1 + length2;
-		Object arrayOfValues = Array.newInstance(_arrayOfValues.getClass().getComponentType(), newCapacity);
-		System.arraycopy(_arrayOfValues, 0, arrayOfValues, 0, length1);
-		System.arraycopy(fcv._arrayOfValues, 0, arrayOfValues, length1, length2);
-		_arrayOfValues = arrayOfValues;
-		if (_nullFlags!=null || fcv._nullFlags!=null){
-			boolean[] nullFlags = new boolean[newCapacity];
-			if (_nullFlags!=null){
-				System.arraycopy(_nullFlags, 0, nullFlags, 0, length1);
-			}
-			if (fcv._nullFlags!=null){
-				System.arraycopy(fcv._nullFlags, 0, nullFlags, length1, length2);
-			}
-			_nullFlags = nullFlags;
-		}
-	}
-	
+
 }

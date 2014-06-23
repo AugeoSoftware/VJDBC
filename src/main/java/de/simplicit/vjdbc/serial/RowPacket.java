@@ -4,17 +4,23 @@
 
 package de.simplicit.vjdbc.serial;
 
-import de.simplicit.vjdbc.util.JavaVersionInfo;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Struct;
+import java.sql.Types;
 import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import de.simplicit.vjdbc.util.JavaVersionInfo;
 
 /**
  * A RowPacket contains the data of a part (or a whole) JDBC-ResultSet.
@@ -30,9 +36,10 @@ public class RowPacket implements Externalizable {
     private boolean _forwardOnly = false;
     private boolean _lastPart = false;
 
-    // Transient attributes
     private FlattenedColumnValues[] _flattenedColumnsValues = null;
-//    private transient ArrayList _rows = null;
+    
+    // Transient attributes
+    private transient List<RowPacket> chain = null;
     private transient int[] _columnTypes = null;
     private transient int _offset = 0;
     private transient int _maxrows = 0;
@@ -87,28 +94,41 @@ public class RowPacket implements Externalizable {
     }
 
     public Object[] get(int index) throws SQLException {
-        int adjustedIndex = index - _offset;
+    	RowPacket rowPacket = this;
+        if (chain!=null){
+        	rowPacket = chain.get(index/_rowCount);
+        }
+
+    	int adjustedIndex = index - rowPacket._offset;
 
         if(adjustedIndex < 0) {
             throw new SQLException("Index " + index + " is below the possible index");
-        } else if(adjustedIndex >= _rowCount) {
+        } else if(adjustedIndex >= rowPacket._rowCount) {
             throw new SQLException("Index " + index + " is above the possible index");
         } else {
         	// in Augeo each row is read only once, so there is no need to cache 
-        	Object[] row = new Object[_flattenedColumnsValues.length];
+        	Object[] row = new Object[rowPacket._flattenedColumnsValues.length];
         	for (int k=0; k<row.length; k++){
-        		row[k] = _flattenedColumnsValues[k].getValue(adjustedIndex);
+        		row[k] = rowPacket._flattenedColumnsValues[k].getValue(adjustedIndex);
         	}
         	return row;
         }
     }
 
     public int size() {
-        return _offset + _rowCount;
+    	RowPacket rowPacket = this;
+        if (chain!=null){
+        	rowPacket = chain.get(chain.size()-1);
+        }
+        return rowPacket._offset + rowPacket._rowCount;
     }
 
     public boolean isLastPart() {
-        return _lastPart;
+    	RowPacket rowPacket = this;
+        if (chain!=null){
+        	rowPacket = chain.get(chain.size()-1);
+        }    	
+    	return rowPacket._lastPart;
     }
 
     public boolean populate(ResultSet rs) throws SQLException {
@@ -385,22 +405,23 @@ public class RowPacket implements Externalizable {
         }
     }
 
-    public void merge(RowPacket rsp) {
-        if(_forwardOnly) {
+    public void merge(RowPacket rsp) throws SQLException {
+    	if(_forwardOnly) {
             _offset += _rowCount;
             _rowCount = rsp._rowCount;
-            //_rows = rsp._rows;
             _flattenedColumnsValues = rsp._flattenedColumnsValues;
+            _lastPart = rsp._lastPart;
         } else {
-//        	FlattenedColumnValues[] flattenedColumnsValues = new FlattenedColumnValues[_flattenedColumnsValues.length+rsp._flattenedColumnsValues.length];
-//        	System.arraycopy(_flattenedColumnsValues, 0, flattenedColumnsValues, 0, _flattenedColumnsValues.length);
-//        	System.arraycopy(rsp._flattenedColumnsValues, 0, flattenedColumnsValues, _flattenedColumnsValues.length, rsp._flattenedColumnsValues.length);
-//        	_flattenedColumnsValues = flattenedColumnsValues;
-//            _rowCount = flattenedColumnsValues.length;
-        	for (int i=0; i<_flattenedColumnsValues.length; i++){
-        		_flattenedColumnsValues[i].merge(rsp._flattenedColumnsValues[i]);
+        	if (chain==null){
+        		chain = new ArrayList<RowPacket>();
+        		chain.add(this);
         	}
-        	_rowCount += rsp._rowCount;
+        	if (_rowCount != rsp._rowCount && !rsp._lastPart){
+        		throw new SQLException("attempt to merge row packet with different length");
+        	}
+        	// avoid copying data, just put the packets in list
+        	rsp._offset = this._offset + this._rowCount;
+        	chain.add(rsp);
         }
     }
 

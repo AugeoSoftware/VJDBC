@@ -1,10 +1,5 @@
 package de.simplicit.vjdbc.serial;
 
-import java.math.BigDecimal;
-import java.sql.Types;
-
-import javax.sql.CommonDataSource;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
 import com.esotericsoftware.kryo.Serializer;
@@ -15,7 +10,6 @@ public class RowPacketSerializer extends Serializer<RowPacket> {
 
 	@Override
 	public void write(Kryo kryo, Output output, RowPacket object) {
-		// TODO write as bits in single byte
 		output.writeBoolean(object.isForwardOnly());
 		output.writeBoolean(object.isLastPart());
 		int rowCount = object.getRowCount();
@@ -63,6 +57,11 @@ public class RowPacketSerializer extends Serializer<RowPacket> {
 					for (int k = 0; k < rowCount; k++) {
 						output.writeDouble(v[k]);
 					}
+				} else if (componentType == Character.TYPE) {
+					char[] v = (char[]) columnValues;
+					for (int k = 0; k < rowCount; k++) {
+						output.writeChar(v[k]);
+					}
 				} else {
 					Object[] v = (Object[]) columnValues;
 
@@ -76,8 +75,8 @@ public class RowPacketSerializer extends Serializer<RowPacket> {
 						}
 					}
 				}
-				// TODO write nullFlags properly
-				kryo.writeObjectOrNull(output, flattenedColumnsValues[i].getNullFlags(), boolean[].class);
+				// write nullFlags
+				kryo.writeObjectOrNull(output, flattenedColumnsValues[i].getNullFlags(), int[].class);
 			}
 		}
 	}
@@ -137,7 +136,13 @@ public class RowPacketSerializer extends Serializer<RowPacket> {
 						for (int k=0; k<rowCount; k++){
 							v[k] = input.readDouble();
 						}
-						columnValues = v;						
+						columnValues = v;
+					} else if (Character.TYPE.equals(componentType)) {
+						char[] v = new char[rowCount];
+						for (int k=0; k<rowCount; k++){
+							v[k] = input.readChar();
+						}
+						columnValues = v;
 					} else {
 						Object[] v = new Object[rowCount];
 						if (Object.class.equals(componentType)){
@@ -152,7 +157,7 @@ public class RowPacketSerializer extends Serializer<RowPacket> {
 						columnValues = v;						
 					}
 					
-					boolean[] nullFlags = kryo.readObjectOrNull(input, boolean[].class); // TODO read nullFlags
+					int[] nullFlags = kryo.readObjectOrNull(input, int[].class); // read nullFlags
 					flattenedColumnsValues[i] = new FlattenedColumnValues(columnValues, nullFlags);
 				} else {
 					// TODO log error

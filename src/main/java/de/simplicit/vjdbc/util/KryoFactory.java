@@ -15,7 +15,6 @@ import de.simplicit.vjdbc.serial.UIDExSerializer;
 public class KryoFactory {
 
 	private static final RowPacketSerializer ROW_PACKET_SERIALIZER = new RowPacketSerializer();
-	private static final FlattenedColumnValuesSerializer FLATTENED_COLUMN_VALUES_SERIALIZER = new FlattenedColumnValuesSerializer();
 	private static final UIDExSerializer UIDEX_SERIALIZER = new UIDExSerializer();
 
 	/**
@@ -41,7 +40,6 @@ public class KryoFactory {
 		kryo.register(UIDEx.class, UIDEX_SERIALIZER);
 		kryo.register(CallingContext.class /** TODO new CallingContextSerializer */);
 		kryo.register(RowPacket.class, ROW_PACKET_SERIALIZER);
-		kryo.register(FlattenedColumnValues.class, FLATTENED_COLUMN_VALUES_SERIALIZER);
 		return kryo;
 	}
 	
