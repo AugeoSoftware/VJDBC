@@ -11,9 +11,15 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
-public class PreparedStatementExecuteBatchCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class PreparedStatementExecuteBatchCommand implements Command,KryoSerializable {
     static final long serialVersionUID = 2439854950000135145L;
 
     private List _batchCommands;
@@ -64,4 +70,25 @@ public class PreparedStatementExecuteBatchCommand implements Command {
 
         return sb.toString();
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		if (_batchCommands==null){
+			output.writeInt(0);
+		} else {
+			output.writeInt(_batchCommands.size());
+			for(Object o: _batchCommands){
+				kryo.writeClassAndObject(output, o);
+			}
+		}
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		int size = input.readInt();
+		_batchCommands = new ArrayList(size);
+		for (int i=0; i<size; i++){
+			_batchCommands.add(kryo.readClassAndObject(input));
+		}
+	}
 }

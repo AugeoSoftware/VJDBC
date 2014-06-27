@@ -10,7 +10,12 @@ import java.io.ObjectOutput;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class StatementGetResultSetCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class StatementGetResultSetCommand implements Command,KryoSerializable {
     static final long serialVersionUID = 972478509574280291L;
 
     public StatementGetResultSetCommand() {
@@ -29,4 +34,12 @@ public class StatementGetResultSetCommand implements Command {
     public String toString() {
         return "StatementGetResultSetCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+	}
 }

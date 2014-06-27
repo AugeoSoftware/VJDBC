@@ -16,7 +16,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
-public class CallableStatementGetObjectCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class CallableStatementGetObjectCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 7045834396073252820L;
 
     private int _index;
@@ -122,4 +127,20 @@ public class CallableStatementGetObjectCommand implements Command {
     public String toString() {
         return "CallableStatementGetObjectCommand";
     }
+    
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_index);
+		kryo.writeObjectOrNull(output, _parameterName, String.class);
+		kryo.writeObjectOrNull(output, _clazz, Class.class);
+		kryo.writeClassAndObject(output, _map);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_index = input.readInt();
+		_parameterName = kryo.readObjectOrNull(input, String.class);
+		_clazz = kryo.readObjectOrNull(input, Class.class);
+		_map = (Map) kryo.readClassAndObject(input);
+	}
 }

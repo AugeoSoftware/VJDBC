@@ -10,7 +10,12 @@ import java.io.ObjectOutput;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class StatementCancelCommand implements Command {  
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class StatementCancelCommand implements Command,KryoSerializable {  
     private static final long serialVersionUID = 5602747945115861740L;
 
     public StatementCancelCommand() {
@@ -30,4 +35,12 @@ public class StatementCancelCommand implements Command {
     public String toString() {
         return "StatementCancelCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+	}
 }

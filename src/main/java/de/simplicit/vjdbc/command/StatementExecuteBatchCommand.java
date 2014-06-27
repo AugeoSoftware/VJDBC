@@ -10,7 +10,12 @@ import java.io.ObjectOutput;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class StatementExecuteBatchCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class StatementExecuteBatchCommand implements Command,KryoSerializable {
     static final long serialVersionUID = -995205757280796006L;
 
     private String[] _sql;
@@ -47,4 +52,14 @@ public class StatementExecuteBatchCommand implements Command {
         }
         return "StatementExecuteBatchCommand:\n" + sb.toString();
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _sql, String[].class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_sql = kryo.readObjectOrNull(input, String[].class);
+	}
 }

@@ -203,7 +203,7 @@ public class CommandProcessor {
                     throw SQLExceptionHelper.wrap(e);
                 } catch (Throwable e) {
                     // Serious runtime error occured, wrap it in an SQLException
-                    _logger.error(e);
+                    _logger.error("Unexpected",e);
                     throw SQLExceptionHelper.wrap(e);
                 } finally {
                     // When there are no more JDBC objects left in the connection entry (that

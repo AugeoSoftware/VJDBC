@@ -10,7 +10,12 @@ import java.io.ObjectOutput;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class StatementUpdateCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class StatementUpdateCommand implements Command,KryoSerializable {
     private static final long serialVersionUID = 3689069560279937335L;
 
     private String _sql;
@@ -37,4 +42,13 @@ public class StatementUpdateCommand implements Command {
     public String toString() {
         return "StatementUpdateCommand: " + _sql;
     }
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _sql, String.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_sql = kryo.readObjectOrNull(input, String.class);
+	}
 }

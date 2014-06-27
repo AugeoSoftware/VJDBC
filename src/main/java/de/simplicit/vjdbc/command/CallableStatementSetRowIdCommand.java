@@ -4,32 +4,35 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.StreamSerializer;
-
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.sql.RowId;
 import java.sql.CallableStatement;
 import java.sql.SQLException;
 
-public class CallableStatementSetRowIdCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.serial.SerialRowId;
+
+public class CallableStatementSetRowIdCommand implements Command,KryoSerializable {
     static final long serialVersionUID = -2847792562974087927L;
 
     private int _index;
     private String _parameterName;
-    private RowId rowId;
+    private SerialRowId rowId;
 
     public CallableStatementSetRowIdCommand() {
     }
 
-    public CallableStatementSetRowIdCommand(int index, RowId rowId) throws IOException {
+    public CallableStatementSetRowIdCommand(int index, SerialRowId rowId) throws IOException {
         _index = index;
         this.rowId = rowId;
     }
 
-    public CallableStatementSetRowIdCommand(String paramName, RowId rowId) throws IOException {
+    public CallableStatementSetRowIdCommand(String paramName, SerialRowId rowId) throws IOException {
         _parameterName = paramName;
         this.rowId = rowId;
     }
@@ -43,7 +46,7 @@ public class CallableStatementSetRowIdCommand implements Command {
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _index = in.readInt();
         _parameterName = in.readUTF();
-        rowId = (RowId)in.readObject();
+        rowId = (SerialRowId)in.readObject();
     }
 
     public Object execute(Object target, ConnectionContext ctx) throws SQLException {
@@ -60,4 +63,18 @@ public class CallableStatementSetRowIdCommand implements Command {
     public String toString() {
         return "CallableStatementSetRowIdCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_index);
+		kryo.writeObjectOrNull(output, _parameterName, String.class);
+		kryo.writeObjectOrNull(output, rowId, SerialRowId.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_index = input.readInt();
+		_parameterName = kryo.readObjectOrNull(input, String.class);
+		rowId = kryo.readObjectOrNull(input, SerialRowId.class);
+	}
 }

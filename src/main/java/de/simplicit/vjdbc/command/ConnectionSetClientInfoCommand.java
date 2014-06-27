@@ -6,7 +6,12 @@ import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.sql.SQLException;
 
-public class ConnectionSetClientInfoCommand implements Command,Serializable {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class ConnectionSetClientInfoCommand implements Command,Serializable, KryoSerializable {
 
 	private String _name;
 	private String _value;
@@ -43,5 +48,17 @@ public class ConnectionSetClientInfoCommand implements Command,Serializable {
 
 	public String getValue() {
 		return _value;
+	}
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _name, String.class);
+		kryo.writeObjectOrNull(output, _value, String.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_name = kryo.readObjectOrNull(input, String.class);
+		_value = kryo.readObjectOrNull(input, String.class);
 	}
 }

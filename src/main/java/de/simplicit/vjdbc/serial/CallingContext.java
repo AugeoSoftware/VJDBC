@@ -26,6 +26,10 @@ public class CallingContext implements Externalizable {
         _stackTrace = sw.toString();
     }
     
+    CallingContext(String stackTrace) {
+    	this._stackTrace = stackTrace;
+    }
+
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _stackTrace = (String)in.readObject();
     }

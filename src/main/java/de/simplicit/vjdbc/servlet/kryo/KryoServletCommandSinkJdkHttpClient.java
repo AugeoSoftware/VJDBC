@@ -35,8 +35,6 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
 
     public UIDEx connect(String database, Properties props, Properties clientInfo, CallingContext ctx) throws SQLException {
         HttpURLConnection conn = null;
-//        ObjectOutputStream oos = null;
-//        ObjectInputStream ois = null;
 
         Input input = null;
         Output output = null;
@@ -55,8 +53,8 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceConnectRequest(new KryoRequestModifier(conn));
             }
+
             // Write the parameter objects to the ObjectOutputStream
-            
             output = new Output(conn.getOutputStream());
             kryo.writeObject(output, database);
             kryo.writeObject(output, props);
@@ -64,12 +62,6 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             kryo.writeObjectOrNull(output, ctx, CallingContext.class);
             output.flush();
             
-//            oos = new ObjectOutputStream(conn.getOutputStream());
-//            oos.writeUTF(database);
-//            oos.writeObject(props);
-//            oos.writeObject(clientInfo);
-//            oos.writeObject(ctx);
-//            oos.flush();
             // Connect ...
             conn.connect();
             // Read the result object from the InputStream
@@ -77,8 +69,6 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             input = new Input(conn.getInputStream());
             Object result = kryo.readClassAndObject(input);
             
-//            ois = new ObjectInputStream(conn.getInputStream());
-//            Object result = ois.readObject();
 //            // This might be a SQLException which must be rethrown
             if(result instanceof SQLException) {
                 throw (SQLException)result;
@@ -103,8 +93,6 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
 
     public Object process(Long connuid, Long uid, Command cmd, CallingContext ctx) throws SQLException {
         HttpURLConnection conn = null;
-//        ObjectOutputStream oos = null;
-//        ObjectInputStream ois = null;
         Input input = null;
         Output output = null;
         
@@ -126,15 +114,6 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             kryo.writeObjectOrNull(output, ctx, CallingContext.class);
             output.flush();
 
-//            oos = new ObjectOutputStream(conn.getOutputStream());
-//            oos.writeObject(connuid);
-//            oos.writeObject(uid);
-//            oos.writeObject(cmd);
-//            oos.writeObject(ctx);
-//            oos.flush();
-
-//            ois = new ObjectInputStream(conn.getInputStream());
-//            Object result = ois.readObject();
             input = new Input(conn.getInputStream());
             Object result = kryo.readClassAndObject(input);
             if(result instanceof SQLException) {

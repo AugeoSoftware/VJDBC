@@ -11,7 +11,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-public class ConnectionReleaseSavepointCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class ConnectionReleaseSavepointCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 6221665321426908025L;
 
     private Long _uidOfSavepoint;
@@ -40,4 +45,16 @@ public class ConnectionReleaseSavepointCommand implements Command {
     public String toString() {
         return "ConnectionReleaseSavepointCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeLong(_uidOfSavepoint.longValue());
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_uidOfSavepoint = Long.valueOf(input.readLong());
+	}
+    
+    
 }

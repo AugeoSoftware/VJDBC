@@ -7,9 +7,14 @@ import java.io.Serializable;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import de.simplicit.vjdbc.VJdbcProperties;
 
-public class DatabaseMetaDataGetUserNameCommand implements Command {
+public class DatabaseMetaDataGetUserNameCommand implements Command, KryoSerializable {
 
 	static final long serialVersionUID = 3543492350930057039L;;
 	
@@ -30,6 +35,14 @@ public class DatabaseMetaDataGetUserNameCommand implements Command {
 			userName = ((DatabaseMetaData)target).getUserName();
 		}
 		return userName;
+	}
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
 	}
 
 }

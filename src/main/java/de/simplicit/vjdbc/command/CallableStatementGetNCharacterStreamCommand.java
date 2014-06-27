@@ -11,7 +11,12 @@ import java.io.*;
 import java.sql.CallableStatement;
 import java.sql.SQLException;
 
-public class CallableStatementGetNCharacterStreamCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class CallableStatementGetNCharacterStreamCommand implements Command, KryoSerializable {
     static final long serialVersionUID = -8218845136435435097L;
 
     private int _index;
@@ -57,4 +62,16 @@ public class CallableStatementGetNCharacterStreamCommand implements Command {
     public String toString() {
         return "CallableStatementGetNCharacterStreamCommand";
     }
+    
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_index);
+		kryo.writeObjectOrNull(output, _parameterName, String.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_index = input.readInt();
+		_parameterName = kryo.readObjectOrNull(input, String.class);
+	}
 }

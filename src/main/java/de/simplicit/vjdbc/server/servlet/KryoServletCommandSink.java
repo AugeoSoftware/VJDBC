@@ -142,8 +142,6 @@ public class KryoServletCommandSink extends HttpServlet {
     }
 
     private void handleRequest(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws ServletException {
-//        ObjectInputStream ois = null;
-//        ObjectOutputStream oos = null;
         Input input = null;
         Output output = null;
         Kryo kryo = null;
@@ -169,23 +167,16 @@ public class KryoServletCommandSink extends HttpServlet {
                     	Long uid = kryo.readObjectOrNull(input, Long.class);
                     	Command cmd = (Command) kryo.readClassAndObject(input);
                     	CallingContext ctx = kryo.readObjectOrNull(input, CallingContext.class);
-//                        Long connuid = (Long) ois.readObject();
-//                        Long uid = (Long) ois.readObject();
-//                        Command cmd = (Command) ois.readObject();
-//                        CallingContext ctx = (CallingContext) ois.readObject();
                         // Delegate execution to the CommandProcessor
                         objectToReturn = _processor.process(connuid, uid, cmd, ctx);
                     } else if(method.equals(ServletCommandSinkIdentifier.CONNECT_COMMAND)) {
-                        _logger.info("Connection request from "+httpServletRequest.getRemoteAddr());
+                        if (_logger.isDebugEnabled()){
+                        	_logger.debug("Connection request from "+httpServletRequest.getRemoteAddr());
+                        }
                         String url = kryo.readObject(input, String.class);
                         Properties props = kryo.readObject(input, Properties.class);
                         Properties clientInfo = kryo.readObject(input, Properties.class);
                     	CallingContext ctx = kryo.readObjectOrNull(input, CallingContext.class);
-
-//                    	String url = ois.readUTF();
-//                        Properties props = (Properties) ois.readObject();
-//                        Properties clientInfo = (Properties) ois.readObject();
-//                        CallingContext ctx = (CallingContext) ois.readObject();
 
                         ConnectionConfiguration connectionConfiguration = VJdbcConfiguration.singleton().getConnection(url);
 
@@ -207,11 +198,8 @@ public class KryoServletCommandSink extends HttpServlet {
                 }
 
                 // Write the result in the response buffer
-//                oos.writeObject(objectToReturn);
-//                oos.flush();
                 kryo.writeClassAndObject(output, objectToReturn);
                 output.flush();
-                
 
                 httpServletResponse.flushBuffer();
             } else {

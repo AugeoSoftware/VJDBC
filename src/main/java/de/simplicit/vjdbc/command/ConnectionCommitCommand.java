@@ -10,7 +10,12 @@ import java.io.ObjectOutput;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class ConnectionCommitCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class ConnectionCommitCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 6221665321426908025L;
 
     public ConnectionCommitCommand() {
@@ -31,4 +36,12 @@ public class ConnectionCommitCommand implements Command {
     public String toString() {
         return "ConnectionCommitCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+	}
 }

@@ -12,7 +12,12 @@ import java.io.ObjectOutput;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class PreparedStatementQueryCommand implements Command, ResultSetProducerCommand {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class PreparedStatementQueryCommand implements Command, ResultSetProducerCommand,KryoSerializable {
     static final long serialVersionUID = -7028150330288724130L;
 
     protected PreparedStatementParameter[] _params;
@@ -62,4 +67,16 @@ public class PreparedStatementQueryCommand implements Command, ResultSetProducer
         }
         return sb.toString();
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_resultSetType);
+		kryo.writeObjectOrNull(output, _params, PreparedStatementParameter[].class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_resultSetType = input.readInt();
+		_params = kryo.readObjectOrNull(input, PreparedStatementParameter[].class);
+	}
 }

@@ -17,6 +17,15 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
+/**
+ * Initially this class is intended for transporting objects 
+ * and compressing the serialized object "on the fly".
+ * However compression cause more problems than solves,
+ * TODO fix compression.
+ * @author semenov
+ *
+ */
+@Deprecated
 public class SerializableTransport implements Externalizable {
     static final long serialVersionUID = -5634734498572640609L;
 

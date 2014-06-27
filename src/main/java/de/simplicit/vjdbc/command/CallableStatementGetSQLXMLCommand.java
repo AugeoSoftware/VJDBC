@@ -14,7 +14,12 @@ import java.sql.CallableStatement;
 import java.sql.SQLXML;
 import java.sql.SQLException;
 
-public class CallableStatementGetSQLXMLCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class CallableStatementGetSQLXMLCommand implements Command,KryoSerializable {
     static final long serialVersionUID = 4203440656745793953L;
 
     private int _index;
@@ -55,4 +60,16 @@ public class CallableStatementGetSQLXMLCommand implements Command {
     public String toString() {
         return "CallableStatementGetSQLXMLCommand";
     }
+    
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_index);
+		kryo.writeObjectOrNull(output, _parameterName, String.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_index = input.readInt();
+		_parameterName = kryo.readObjectOrNull(input, String.class);
+	}
 }

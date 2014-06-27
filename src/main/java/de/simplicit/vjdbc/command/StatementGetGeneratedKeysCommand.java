@@ -11,7 +11,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class StatementGetGeneratedKeysCommand implements Command, ResultSetProducerCommand {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class StatementGetGeneratedKeysCommand implements Command, ResultSetProducerCommand,KryoSerializable {
     static final long serialVersionUID = -6529413105195105196L;
 
     public StatementGetGeneratedKeysCommand() {
@@ -34,4 +39,12 @@ public class StatementGetGeneratedKeysCommand implements Command, ResultSetProdu
     public String toString() {
         return "StatementGetGeneratedKeysCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+	}
 }

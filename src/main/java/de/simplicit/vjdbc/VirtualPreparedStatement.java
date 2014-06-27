@@ -220,9 +220,9 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
 
     protected void setParam(int index, PreparedStatementParameter parm) {
         if(_paramList.length < index) {
-            List tmp = Arrays.asList(_paramList);
-            PreparedStatementParameter[] newArray = new PreparedStatementParameter[index * 2];
-            _paramList = (PreparedStatementParameter[]) tmp.toArray(newArray);
+        	PreparedStatementParameter[] newArray = new PreparedStatementParameter[index * 2];
+        	System.arraycopy(_paramList, 0, newArray, 0, _paramList.length);
+        	_paramList = newArray;
         }
 
         if(_maxIndex < index) {

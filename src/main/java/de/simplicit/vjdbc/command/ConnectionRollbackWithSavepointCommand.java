@@ -11,7 +11,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-public class ConnectionRollbackWithSavepointCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class ConnectionRollbackWithSavepointCommand implements Command, KryoSerializable {
     static final long serialVersionUID = -5189425307111618293L;
 
     private Long _uidOfSavepoint;
@@ -40,4 +45,14 @@ public class ConnectionRollbackWithSavepointCommand implements Command {
     public String toString() {
         return "ConnectionRollbackWithSavepointCommand";
     }
+    
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeLong(_uidOfSavepoint.longValue());
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_uidOfSavepoint = Long.valueOf(input.readLong());
+	}
 }

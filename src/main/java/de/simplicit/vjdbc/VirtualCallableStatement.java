@@ -363,8 +363,8 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public void setObject(String parameterName, Object x, int targetSqlType, int scale)
             throws SQLException {
         CallableStatementSetObjectCommand cmd = new CallableStatementSetObjectCommand(parameterName,
-                new Integer(targetSqlType),
-                new Integer(scale));
+                targetSqlType,
+                scale);
         cmd.setObject(x);
         _sink.process(_objectUid, cmd);
     }
@@ -372,16 +372,13 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public void setObject(String parameterName, Object x, int targetSqlType)
             throws SQLException {
         CallableStatementSetObjectCommand cmd = new CallableStatementSetObjectCommand(parameterName,
-                new Integer(targetSqlType),
-                null);
+                targetSqlType);
         cmd.setObject(x);
         _sink.process(_objectUid, cmd);
     }
 
     public void setObject(String parameterName, Object x) throws SQLException {
-        CallableStatementSetObjectCommand cmd = new CallableStatementSetObjectCommand(parameterName,
-                null,
-                null);
+        CallableStatementSetObjectCommand cmd = new CallableStatementSetObjectCommand(parameterName);
         cmd.setObject(x);
         _sink.process(_objectUid, cmd);
     }
@@ -644,7 +641,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public void setNClob(String parameterName, NClob value) throws SQLException {
         try {
-            CallableStatementSetNClobCommand cmd = new CallableStatementSetNClobCommand(parameterName, value);
+            CallableStatementSetNClobCommand cmd = new CallableStatementSetNClobCommand(parameterName, new SerialNClob(value));
             _sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
@@ -786,7 +783,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public void setClob(String parameterName, Clob clob) throws SQLException {
         try {
             CallableStatementSetClobCommand cmd =
-                new CallableStatementSetClobCommand(parameterName, clob);
+                new CallableStatementSetClobCommand(parameterName, new SerialClob(clob));
             _sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
@@ -796,7 +793,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public void setBlob(String parameterName, Blob blob) throws SQLException {
         try {
             CallableStatementSetBlobCommand cmd =
-                new CallableStatementSetBlobCommand(parameterName, blob);
+                new CallableStatementSetBlobCommand(parameterName, new SerialBlob(blob));
             _sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);

@@ -11,7 +11,12 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.sql.SQLException;
 
-public class ResultSetGetMetaDataCommand implements Command {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class ResultSetGetMetaDataCommand implements Command,KryoSerializable {
     private static final long serialVersionUID = 3258411737794558008L;
 
     public ResultSetGetMetaDataCommand() {
@@ -31,4 +36,12 @@ public class ResultSetGetMetaDataCommand implements Command {
     public String toString() {
         return "ResultSetGetMetaDataCommand";
     }
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+	}
 }
