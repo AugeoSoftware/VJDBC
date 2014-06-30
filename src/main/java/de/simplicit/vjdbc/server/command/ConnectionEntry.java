@@ -13,6 +13,7 @@ import de.simplicit.vjdbc.command.JdbcInterfaceType;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
 import de.simplicit.vjdbc.command.ResultSetProducerCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
+import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
 import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
 import de.simplicit.vjdbc.serial.SerializableTransport;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
@@ -204,6 +205,10 @@ class ConnectionEntry implements ConnectionContext {
                         if(_logger.isDebugEnabled()) {
                             _logger.debug("Registered " + result.getClass().getName() + " with UID " + uidResult);
                         }
+                        
+                        if (result instanceof DatabaseMetaData){
+                        	return new SerialDatabaseMetaData(uidResult, (DatabaseMetaData) result);
+                        }                        
                         if (result instanceof ProxiedObject) {
                             return ((ProxiedObject)result).getProxy();
                         }

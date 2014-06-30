@@ -28,12 +28,17 @@ import de.simplicit.vjdbc.command.CallableStatementSetRowIdCommand;
 import de.simplicit.vjdbc.command.CallableStatementSetSQLXMLCommand;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionCommitCommand;
+import de.simplicit.vjdbc.command.ConnectionCreateStatementCommand;
+import de.simplicit.vjdbc.command.ConnectionGetAutoCommitCommand;
+import de.simplicit.vjdbc.command.ConnectionGetMetaData;
 import de.simplicit.vjdbc.command.ConnectionPrepareCallCommand;
 import de.simplicit.vjdbc.command.ConnectionPrepareStatementCommand;
 import de.simplicit.vjdbc.command.ConnectionPrepareStatementExtendedCommand;
 import de.simplicit.vjdbc.command.ConnectionReleaseSavepointCommand;
 import de.simplicit.vjdbc.command.ConnectionRollbackWithSavepointCommand;
+import de.simplicit.vjdbc.command.ConnectionSetAutoCommitCommand;
 import de.simplicit.vjdbc.command.ConnectionSetClientInfoCommand;
+import de.simplicit.vjdbc.command.DatabaseMetaDataGetDriverNameCommand;
 import de.simplicit.vjdbc.command.DatabaseMetaDataGetUserNameCommand;
 import de.simplicit.vjdbc.command.DestroyCommand;
 import de.simplicit.vjdbc.command.NextRowPacketCommand;
@@ -52,12 +57,17 @@ import de.simplicit.vjdbc.command.StatementExecuteExtendedCommand;
 import de.simplicit.vjdbc.command.StatementGetGeneratedKeysCommand;
 import de.simplicit.vjdbc.command.StatementGetResultSetCommand;
 import de.simplicit.vjdbc.command.StatementQueryCommand;
+import de.simplicit.vjdbc.command.StatementSetFetchSizeCommand;
 import de.simplicit.vjdbc.command.StatementUpdateCommand;
 import de.simplicit.vjdbc.command.StatementUpdateExtendedCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.CallingContextSerializer;
 import de.simplicit.vjdbc.serial.RowPacket;
 import de.simplicit.vjdbc.serial.RowPacketSerializer;
+import de.simplicit.vjdbc.serial.SerialArray;
+import de.simplicit.vjdbc.serial.SerialArraySerializer;
+import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
+import de.simplicit.vjdbc.serial.SerialDatabaseMetaDataSerializer;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.serial.UIDExSerializer;
 
@@ -66,6 +76,9 @@ public class KryoFactory {
 	private static final RowPacketSerializer ROW_PACKET_SERIALIZER = new RowPacketSerializer();
 	private static final UIDExSerializer UIDEX_SERIALIZER = new UIDExSerializer();
 	private static final CallingContextSerializer CALLING_CONTEXT_SERIALIZER = new CallingContextSerializer();
+	private static final SerialArraySerializer SERIAL_ARRAY_SERIALIZER = new SerialArraySerializer(); 
+	
+	private static final SerialDatabaseMetaDataSerializer SERIAL_DATABASE_METADATA_SERIALIZER = new SerialDatabaseMetaDataSerializer();
 	
 	private final ConcurrentLinkedQueue<Kryo> kryoCache = new ConcurrentLinkedQueue<Kryo>();
 	
@@ -94,6 +107,8 @@ public class KryoFactory {
 		kryo.register(UIDEx.class, UIDEX_SERIALIZER);
 		kryo.register(CallingContext.class, CALLING_CONTEXT_SERIALIZER);
 		kryo.register(RowPacket.class, ROW_PACKET_SERIALIZER);
+		kryo.register(SerialArray.class, SERIAL_ARRAY_SERIALIZER);
+		kryo.register(SerialDatabaseMetaData.class, SERIAL_DATABASE_METADATA_SERIALIZER);
 		
 		// Commands
 		kryo.register(CallableStatementGetArrayCommand.class);
@@ -142,6 +157,12 @@ public class KryoFactory {
 		kryo.register(StatementQueryCommand.class);
 		kryo.register(StatementUpdateCommand.class);
 		kryo.register(StatementUpdateExtendedCommand.class);
+		kryo.register(ConnectionCreateStatementCommand.class);
+		kryo.register(ConnectionGetAutoCommitCommand.class);
+		kryo.register(ConnectionGetMetaData.class);
+		kryo.register(ConnectionSetAutoCommitCommand.class);
+		kryo.register(DatabaseMetaDataGetDriverNameCommand.class);
+		kryo.register(StatementSetFetchSizeCommand.class);
 		
 		
 		return kryo;

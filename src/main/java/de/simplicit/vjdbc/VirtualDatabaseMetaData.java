@@ -5,6 +5,7 @@
 package de.simplicit.vjdbc;
 
 import de.simplicit.vjdbc.command.*;
+import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
 import de.simplicit.vjdbc.serial.SerializableTransport;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
@@ -14,12 +15,25 @@ import java.sql.*;
 
 public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMetaData {
     private Connection _connection;
+    private String _driverName;
+    private String _driverVersion;
+    private String _productName;
+    private String _productVersion;
 
     public VirtualDatabaseMetaData(Connection conn, UIDEx reg, DecoratedCommandSink sink) {
         super(reg, sink);
         _connection = conn;
     }
 
+    public VirtualDatabaseMetaData(Connection conn, SerialDatabaseMetaData serialDatabaseMetadata, DecoratedCommandSink sink) {
+        super(serialDatabaseMetadata.getUIDEx(), sink);
+        _connection = conn;
+        _productName = serialDatabaseMetadata.getDatabaseProductName();
+        _productVersion = serialDatabaseMetadata.getDatabaseProductVersion();
+        _driverName = serialDatabaseMetadata.getDriverName();
+        _driverVersion = serialDatabaseMetadata.getDriverVersion();
+    }
+    
     public boolean allProceduresAreCallable() throws SQLException {
         return _sink.processWithBooleanResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
                 "allProceduresAreCallable"));
@@ -65,21 +79,33 @@ public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMeta
     }
 
     public String getDatabaseProductName() throws SQLException {
-        return (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
-                "getDatabaseProductName"));
+        if (_productName==null){
+        	_productName = (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
+                    "getDatabaseProductName"));
+        }
+    	return _productName;
     }
 
     public String getDatabaseProductVersion() throws SQLException {
-        return (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
-                "getDatabaseProductVersion"));
+        if (_productVersion==null){
+        	_productVersion = (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA,
+                    "getDatabaseProductVersion")); 
+        }    
+    	return _productVersion;
     }
 
     public String getDriverName() throws SQLException {
-        return (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getDriverName"));
+    	if (_driverName==null){
+        	_driverName = (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getDriverName"));
+    	}
+    	return _driverName;
     }
 
     public String getDriverVersion() throws SQLException {
-        return (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getDriverVersion"));
+    	if (_driverVersion==null){
+    		_driverVersion = (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getDriverVersion"));
+    	}
+    	return _driverVersion;
     }
 
     public int getDriverMajorVersion() {

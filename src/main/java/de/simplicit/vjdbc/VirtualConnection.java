@@ -47,7 +47,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public Statement createStatement() throws SQLException {
-        Object result =_sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "createStatement"), true);
+    	Object result = _sink.process(_objectUid, new ConnectionCreateStatementCommand());
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
             return new VirtualStatement(reg, this, _sink, ResultSet.TYPE_FORWARD_ONLY);
@@ -107,16 +107,14 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "setAutoCommit",
-                new Object[]{autoCommit ? Boolean.TRUE : Boolean.FALSE},
-                ParameterTypeCombinations.BOL));
+    	_sink.process(_objectUid, new ConnectionSetAutoCommitCommand(autoCommit));
         // Remember the auto-commit value to prevent unnecessary remote calls
         _isAutoCommit = Boolean.valueOf(autoCommit);
     }
 
     public boolean getAutoCommit() throws SQLException {
         if(_isAutoCommit == null) {
-            boolean autoCommit = _sink.processWithBooleanResult(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "getAutoCommit"));
+        	boolean autoCommit = _sink.processWithBooleanResult(_objectUid, new ConnectionGetAutoCommitCommand());
             _isAutoCommit = Boolean.valueOf(autoCommit);
         }
         return _isAutoCommit.booleanValue();
@@ -147,10 +145,12 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public DatabaseMetaData getMetaData() throws SQLException {
         if(_databaseMetaData == null) {
-            Object result = _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "getMetaData"), true);
+        	Object result = _sink.process(_objectUid, new ConnectionGetMetaData());
             if (result instanceof UIDEx) {
                 UIDEx reg = (UIDEx)result;
                 _databaseMetaData = new VirtualDatabaseMetaData(this, reg, _sink);
+            } else if (result instanceof SerialDatabaseMetaData){
+            	_databaseMetaData = new VirtualDatabaseMetaData(this, (SerialDatabaseMetaData)result, _sink);
             } else {
                 _databaseMetaData = (DatabaseMetaData)proxyFactory.makeJdbcObject(result);
             }

@@ -21,7 +21,7 @@ public class SerialArray implements Array, Externalizable {
     public SerialArray() {
     }
 
-    public SerialArray(int baseType, String typeName, Object[] elements) {
+    public SerialArray(int baseType, String typeName, Object elements) {
         _baseType = baseType;
         _baseTypeName = typeName;
         _array = elements;
@@ -140,15 +140,15 @@ public class SerialArray implements Array, Externalizable {
     }
     /* end JDBC4 support */
 
-    public String getBaseTypeName() throws SQLException {
+    public String getBaseTypeName() /*throws SQLException*/ {
         return _baseTypeName;
     }
 
-    public int getBaseType() throws SQLException {
+    public int getBaseType() /*throws SQLException*/ {
         return _baseType;
     }
 
-    public Object getArray() throws SQLException {
+    public Object getArray() /*throws SQLException*/ {
         return _array;
     }
 

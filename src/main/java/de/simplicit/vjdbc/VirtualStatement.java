@@ -186,8 +186,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public void setFetchSize(int rows) throws SQLException {
-        _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.STATEMENT, "setFetchSize",
-                new Object[] { new Integer(rows) }, ParameterTypeCombinations.INT));
+    	_sink.process(_objectUid, new StatementSetFetchSizeCommand(rows));
     }
 
     public int getFetchSize() throws SQLException {

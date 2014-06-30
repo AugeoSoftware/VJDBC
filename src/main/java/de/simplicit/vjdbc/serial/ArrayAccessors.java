@@ -7,7 +7,7 @@ package de.simplicit.vjdbc.serial;
 import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Map;
-
+@Deprecated
 class ArrayAccessors {
     private static Map _arrayAccessors = new HashMap();
     private static ArrayAccess _objectArrayFiller = new ArrayAccessObject();
