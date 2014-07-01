@@ -66,8 +66,17 @@ import de.simplicit.vjdbc.serial.RowPacket;
 import de.simplicit.vjdbc.serial.RowPacketSerializer;
 import de.simplicit.vjdbc.serial.SerialArray;
 import de.simplicit.vjdbc.serial.SerialArraySerializer;
+import de.simplicit.vjdbc.serial.SerialBlob;
+import de.simplicit.vjdbc.serial.SerialClob;
 import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
 import de.simplicit.vjdbc.serial.SerialDatabaseMetaDataSerializer;
+import de.simplicit.vjdbc.serial.SerialNClob;
+import de.simplicit.vjdbc.serial.SerialRef;
+import de.simplicit.vjdbc.serial.SerialRefSerializer;
+import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
+import de.simplicit.vjdbc.serial.SerialRowId;
+import de.simplicit.vjdbc.serial.SerialRowIdSerializer;
+import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.serial.UIDExSerializer;
 
@@ -79,6 +88,8 @@ public class KryoFactory {
 	private static final SerialArraySerializer SERIAL_ARRAY_SERIALIZER = new SerialArraySerializer(); 
 	
 	private static final SerialDatabaseMetaDataSerializer SERIAL_DATABASE_METADATA_SERIALIZER = new SerialDatabaseMetaDataSerializer();
+	private static final SerialRefSerializer SERIAL_REF_SERIALIZER = new SerialRefSerializer();
+	private static final SerialRowIdSerializer SERIAL_ROW_ID_SERIALIZER = new SerialRowIdSerializer();
 	
 	private final ConcurrentLinkedQueue<Kryo> kryoCache = new ConcurrentLinkedQueue<Kryo>();
 	
@@ -109,6 +120,13 @@ public class KryoFactory {
 		kryo.register(RowPacket.class, ROW_PACKET_SERIALIZER);
 		kryo.register(SerialArray.class, SERIAL_ARRAY_SERIALIZER);
 		kryo.register(SerialDatabaseMetaData.class, SERIAL_DATABASE_METADATA_SERIALIZER);
+		kryo.register(SerialBlob.class);
+		kryo.register(SerialClob.class);
+		kryo.register(SerialNClob.class);
+		kryo.register(SerialRef.class, SERIAL_REF_SERIALIZER);
+		kryo.register(SerialResultSetMetaData.class);
+		kryo.register(SerialRowId.class, SERIAL_ROW_ID_SERIALIZER);
+		kryo.register(StreamingResultSet.class);
 		
 		// Commands
 		kryo.register(CallableStatementGetArrayCommand.class);

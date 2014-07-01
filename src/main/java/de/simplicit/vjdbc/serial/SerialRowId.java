@@ -35,7 +35,16 @@ public class SerialRowId implements RowId, Externalizable {
 //        hashCode = rowId.hashCode();
     }
 
-    public boolean equals(Object o) {
+    
+    
+    SerialRowId(byte[] bytes, String str, int hashCode) {
+		this.bytes = bytes;
+		this.str = str;
+		this.hashCode = hashCode;
+	}
+
+
+	public boolean equals(Object o) {
         if (o instanceof RowId) {
             RowId rowId = (RowId)o;
             byte[] otherBytes = rowId.getBytes();

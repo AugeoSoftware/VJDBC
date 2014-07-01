@@ -8,7 +8,12 @@ import java.io.*;
 import java.sql.Blob;
 import java.sql.SQLException;
 
-public class SerialBlob implements Blob, Externalizable {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class SerialBlob implements Blob, Externalizable,KryoSerializable {
     private static final long serialVersionUID = 3258134639489857079L;
 
     private byte[] _data;
@@ -147,4 +152,14 @@ public class SerialBlob implements Blob, Externalizable {
         _data = null;
     }
     /* end JDBC4 support */
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _data, byte[].class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_data = kryo.readObjectOrNull(input, byte[].class);
+	}
 }

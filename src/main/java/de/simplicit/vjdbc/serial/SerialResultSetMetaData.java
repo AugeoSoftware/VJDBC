@@ -11,8 +11,38 @@ import java.io.ObjectOutput;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-public class SerialResultSetMetaData implements ResultSetMetaData, Externalizable {
-    static final long serialVersionUID = 9034215340975782405L;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class SerialResultSetMetaData implements ResultSetMetaData, Externalizable, KryoSerializable {
+	private static final int CATALOG_NAME_ERROR_MASK = 1;
+	private static final int SCHEMA_NAME_ERROR_MASK = CATALOG_NAME_ERROR_MASK<<1;
+	private static final int TABLE_NAME_ERROR_MASK = SCHEMA_NAME_ERROR_MASK<<1;
+	private static final int COLUMN_CLASS_NAME_ERROR_MASK = TABLE_NAME_ERROR_MASK<<1;
+	private static final int COLUMN_LABEL_ERROR_MASK = COLUMN_CLASS_NAME_ERROR_MASK<<1;	
+	private static final int COLUMN_NAME_ERROR_MASK = COLUMN_LABEL_ERROR_MASK<<1;
+	private static final int COLUMN_TYPE_NAME_ERROR_MASK = COLUMN_NAME_ERROR_MASK<<1;
+	
+	private static final int COLUMN_TYPE_ERROR_MASK = COLUMN_TYPE_NAME_ERROR_MASK<<1;
+	private static final int COLUMN_DISPLAY_SIZE_ERROR_MASK = COLUMN_TYPE_ERROR_MASK<<1;
+	private static final int PRECISION_ERROR_MASK = COLUMN_DISPLAY_SIZE_ERROR_MASK<<1;
+    private static final int SCALE_ERROR_MASK = PRECISION_ERROR_MASK<<1;
+    private static final int NULLABLE_ERROR_MASK = SCALE_ERROR_MASK<<1;
+    
+    private static final int AUTO_INCREMENT_ERROR_MASK = NULLABLE_ERROR_MASK<<1;
+    private static final int CASE_SENSITIVE_ERROR_MASK = AUTO_INCREMENT_ERROR_MASK<<1;
+    private static final int CURRENCY_ERROR_MASK = CASE_SENSITIVE_ERROR_MASK<<1;
+    private static final int READ_ONLY_ERROR_MASK = CURRENCY_ERROR_MASK<<1;
+    private static final int SEARCHABLE_ERROR_MASK = READ_ONLY_ERROR_MASK<<1;
+    private static final int SIGNED_ERROR_MASK = SEARCHABLE_ERROR_MASK<<1;
+    private static final int WRITABLE_ERROR_MASK = SIGNED_ERROR_MASK<<1;
+    private static final int DEFINITIVELY_WRITABLE_ERROR_MASK = WRITABLE_ERROR_MASK<<1;
+	
+
+	static final long serialVersionUID = 9034215340975782405L;
+
 
     private int _columnCount;
 
@@ -24,20 +54,22 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     private String[] _columnName;
     private String[] _columnTypeName;
 
-    private Integer[] _columnType;
-    private Integer[] _columnDisplaySize;
-    private Integer[] _precision;
-    private Integer[] _scale;
-    private Integer[] _nullable;
+    private int[] _columnType;
+    private int[] _columnDisplaySize;
+    private int[] _precision;
+    private int[] _scale;
+    private int[] _nullable;
 
-    private Boolean[] _autoIncrement;
-    private Boolean[] _caseSensitive;
-    private Boolean[] _currency;
-    private Boolean[] _readOnly;
-    private Boolean[] _searchable;
-    private Boolean[] _signed;
-    private Boolean[] _writable;
-    private Boolean[] _definitivelyWritable;
+    private boolean[] _autoIncrement;
+    private boolean[] _caseSensitive;
+    private boolean[] _currency;
+    private boolean[] _readOnly;
+    private boolean[] _searchable;
+    private boolean[] _signed;
+    private boolean[] _writable;
+    private boolean[] _definitivelyWritable;
+    
+    private int[] _error;
 
     public SerialResultSetMetaData() {
     }
@@ -85,52 +117,52 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
         }
     }
 
-    public Integer[] readIntArr(ObjectInput in) throws IOException
+    public int[] readIntArr(ObjectInput in) throws IOException
     {
         int numElems = in.readShort();
         if (numElems != -1) {
-            Integer ret[] = new Integer[numElems];
+            int ret[] = new int[numElems];
             for (int i = 0; i < numElems; i++) {
-                ret[i] = new Integer(in.readInt());
+                ret[i] = in.readInt();
             }
             return ret;
         }
         return null;
     }
 
-    public void writeIntArr(Integer arr[], ObjectOutput out)
+    public void writeIntArr(int arr[], ObjectOutput out)
         throws IOException
     {
         if (arr != null) {
             out.writeShort(arr.length);
             for (int i = 0; i < arr.length; i++) {
-                out.writeInt(arr[i].intValue());
+                out.writeInt(arr[i]);
             }
         } else {
             out.writeShort(-1);
         }
     }
 
-    public Boolean[] readBooleanArr(ObjectInput in) throws IOException
+    public boolean[] readBooleanArr(ObjectInput in) throws IOException
     {
         int numElems = in.readShort();
         if (numElems != -1) {
-            Boolean ret[] = new Boolean[numElems];
+        	boolean ret[] = new boolean[numElems];
             for (int i = 0; i < numElems; i++) {
-                ret[i] = new Boolean(in.readBoolean());
+                ret[i] = in.readBoolean();
             }
             return ret;
         }
         return null;
     }
 
-    public void writeBooleanArr(Boolean arr[], ObjectOutput out)
+    public void writeBooleanArr(boolean arr[], ObjectOutput out)
         throws IOException
     {
         if (arr != null) {
             out.writeShort(arr.length);
             for (int i = 0; i < arr.length; i++) {
-                out.writeBoolean(arr[i].booleanValue());
+                out.writeBoolean(arr[i]);
             }
         } else {
             out.writeShort(-1);
@@ -140,6 +172,8 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _columnCount = in.readInt();
 
+        _error = readIntArr(in);
+        
         _catalogName = readStringArr(in);
         _schemaName = readStringArr(in);
         _tableName = readStringArr(in);
@@ -167,6 +201,8 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeInt(_columnCount);
 
+        writeIntArr(_error, out);
+        
         writeStringArr(_catalogName, out);
         writeStringArr(_schemaName, out);
         writeStringArr(_tableName, out);
@@ -200,145 +236,156 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
         _columnName = new String[_columnCount];
         _columnTypeName = new String[_columnCount];
 
-        _columnDisplaySize = new Integer[_columnCount];
-        _columnType = new Integer[_columnCount];
-        _precision = new Integer[_columnCount];
-        _scale = new Integer[_columnCount];
-        _nullable = new Integer[_columnCount];
+        _columnDisplaySize = new int[_columnCount];
+        _columnType = new int[_columnCount];
+        _precision = new int[_columnCount];
+        _scale = new int[_columnCount];
+        _nullable = new int[_columnCount];
 
-        _autoIncrement = new Boolean[_columnCount];
-        _caseSensitive = new Boolean[_columnCount];
-        _currency = new Boolean[_columnCount];
-        _readOnly = new Boolean[_columnCount];
-        _searchable = new Boolean[_columnCount];
-        _signed = new Boolean[_columnCount];
-        _writable = new Boolean[_columnCount];
-        _definitivelyWritable = new Boolean[_columnCount];
+        _autoIncrement = new boolean[_columnCount];
+        _caseSensitive = new boolean[_columnCount];
+        _currency = new boolean[_columnCount];
+        _readOnly = new boolean[_columnCount];
+        _searchable = new boolean[_columnCount];
+        _signed = new boolean[_columnCount];
+        _writable = new boolean[_columnCount];
+        _definitivelyWritable = new boolean[_columnCount];
+        
+        _error = new int[_columnCount];
     }
 
     private void fillArrays(ResultSetMetaData rsmd) {
         for(int i = 0; i < _columnCount; i++) {
             int col = i + 1;
-
+            int e = 0;
             try {
                 _catalogName[i] = rsmd.getCatalogName(col);
-            } catch(Exception e) {
+            } catch(Exception e0) {
                 _catalogName[i] = null;
+                e |= CATALOG_NAME_ERROR_MASK;
             }
 
             try {
                 _schemaName[i] = rsmd.getSchemaName(col);
             } catch(Exception e1) {
                 _schemaName[i] = null;
+                e |= SCHEMA_NAME_ERROR_MASK;
             }
-
+            
             try {
                 _tableName[i] = rsmd.getTableName(col);
             } catch(Exception e2) {
                 _tableName[i] = null;
+                e |= TABLE_NAME_ERROR_MASK;
             }
 
             try {
                 _columnLabel[i] = rsmd.getColumnLabel(col);
             } catch(Exception e3) {
                 _columnLabel[i] = null;
+                e |= COLUMN_LABEL_ERROR_MASK;
             }
 
             try {
                 _columnName[i] = rsmd.getColumnName(col);
             } catch(Exception e4) {
                 _columnName[i] = null;
+                e |= COLUMN_NAME_ERROR_MASK;
             }
 
             try {
                 _columnClassName[i] = rsmd.getColumnClassName(col);
             } catch(Exception e5) {
                 _columnClassName[i] = null;
+                e |= COLUMN_CLASS_NAME_ERROR_MASK;
             }
 
             try {
                 _columnTypeName[i] = rsmd.getColumnTypeName(col);
             } catch(Exception e6) {
                 _columnTypeName[i] = null;
+                e |= COLUMN_TYPE_NAME_ERROR_MASK;
             }
 
             try {
-                _columnDisplaySize[i] = new Integer(rsmd.getColumnDisplaySize(col));
+                _columnDisplaySize[i] = rsmd.getColumnDisplaySize(col);
             } catch(Exception e7) {
-                _columnDisplaySize[i] = null;
+                e |= COLUMN_DISPLAY_SIZE_ERROR_MASK;
             }
 
             try {
-                _columnType[i] = new Integer(rsmd.getColumnType(col));
+                _columnType[i] = rsmd.getColumnType(col);
             } catch(Exception e8) {
-                _columnType[i] = null;
+                e |= COLUMN_TYPE_ERROR_MASK;
             }
 
             try {
-                _precision[i] = new Integer(rsmd.getPrecision(col));
+                _precision[i] = rsmd.getPrecision(col);
             } catch(Exception e9) {
-                _precision[i] = null;
+                e |= PRECISION_ERROR_MASK;
             }
 
             try {
-                _scale[i] = new Integer(rsmd.getScale(col));
+                _scale[i] = rsmd.getScale(col);
             } catch(Exception e10) {
-                _scale[i] = null;
+                e |= SCALE_ERROR_MASK;
             }
 
             try {
-                _nullable[i] = new Integer(rsmd.isNullable(col));
+                _nullable[i] = rsmd.isNullable(col);
             } catch(Exception e11) {
-                _nullable[i] = null;
+                e |= NULLABLE_ERROR_MASK;
             }
 
             try {
-                _autoIncrement[i] = rsmd.isAutoIncrement(col) ? Boolean.TRUE : Boolean.FALSE;
+                _autoIncrement[i] = rsmd.isAutoIncrement(col);
             } catch(Exception e12) {
-                _autoIncrement[i] = null;
+                e |= AUTO_INCREMENT_ERROR_MASK;
             }
 
             try {
-                _caseSensitive[i] = rsmd.isCaseSensitive(col) ? Boolean.TRUE : Boolean.FALSE;
+                _caseSensitive[i] = rsmd.isCaseSensitive(col);
             } catch(Exception e13) {
-                _caseSensitive[i] = null;
+                e |= CASE_SENSITIVE_ERROR_MASK;
             }
 
             try {
-                _currency[i] = rsmd.isCurrency(col) ? Boolean.TRUE : Boolean.FALSE;
+                _currency[i] = rsmd.isCurrency(col);
             } catch(Exception e14) {
-                _currency[i] = null;
+                e |= CURRENCY_ERROR_MASK;
             }
 
             try {
-                _readOnly[i] = rsmd.isReadOnly(col) ? Boolean.TRUE : Boolean.FALSE;
+                _readOnly[i] = rsmd.isReadOnly(col);
             } catch(Exception e15) {
-                _readOnly[i] = null;
+                e |= READ_ONLY_ERROR_MASK;
             }
 
             try {
-                _searchable[i] = rsmd.isSearchable(col) ? Boolean.TRUE : Boolean.FALSE;
+                _searchable[i] = rsmd.isSearchable(col);
             } catch(Exception e16) {
-                _searchable[i] = null;
+                e |= SEARCHABLE_ERROR_MASK;
             }
 
             try {
-                _signed[i] = rsmd.isSigned(col) ? Boolean.TRUE : Boolean.FALSE;
+                _signed[i] = rsmd.isSigned(col);
             } catch(Exception e17) {
-                _signed[i] = null;
+                e |= SIGNED_ERROR_MASK;
             }
 
             try {
-                _writable[i] = rsmd.isWritable(col) ? Boolean.TRUE : Boolean.FALSE;
+                _writable[i] = rsmd.isWritable(col);
             } catch(Exception e18) {
-                _writable[i] = null;
+                e |= WRITABLE_ERROR_MASK;
             }
 
             try {
-                _definitivelyWritable[i] = rsmd.isDefinitelyWritable(col) ? Boolean.TRUE : Boolean.FALSE;
+                _definitivelyWritable[i] = rsmd.isDefinitelyWritable(col);
             } catch(Exception e18) {
-                _definitivelyWritable[i] = null;
+                e |= DEFINITIVELY_WRITABLE_ERROR_MASK;
             }
+         
+            _error[i] = e;
         }
     }
 
@@ -348,121 +395,161 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
 
     public boolean isAutoIncrement(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_autoIncrement[column - 1]);
-        return _autoIncrement[column - 1].booleanValue();
+        if ((_error[column-1] & AUTO_INCREMENT_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _autoIncrement[column - 1];
     }
 
     public boolean isCaseSensitive(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_caseSensitive[column - 1]);
-        return _caseSensitive[column - 1].booleanValue();
+        if ((_error[column-1] & CASE_SENSITIVE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _caseSensitive[column - 1];
     }
 
     public boolean isSearchable(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_searchable[column - 1]);
-        return _searchable[column - 1].booleanValue();
+        if ((_error[column-1] & SEARCHABLE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
+        return _searchable[column - 1];
     }
 
     public boolean isCurrency(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_currency[column - 1]);
-        return _currency[column - 1].booleanValue();
+        if ((_error[column-1] & CURRENCY_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
+        return _currency[column - 1];
     }
 
     public int isNullable(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_nullable[column - 1]);
-        return _nullable[column - 1].intValue();
+        if ((_error[column-1] & NULLABLE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }       
+        return _nullable[column - 1];
     }
 
     public boolean isSigned(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_signed[column - 1]);
-        return _signed[column - 1].booleanValue();
+        if ((_error[column-1] & SIGNED_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _signed[column - 1];
     }
 
     public int getColumnDisplaySize(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnDisplaySize[column - 1]);
-        return _columnDisplaySize[column - 1].intValue();
+        if ((_error[column-1] & COLUMN_DISPLAY_SIZE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _columnDisplaySize[column - 1];
     }
 
     public String getColumnLabel(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnLabel[column - 1]);
+        if ((_error[column-1] & COLUMN_LABEL_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
         return _columnLabel[column - 1];
     }
 
     public String getColumnName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnName[column - 1]);
+        if ((_error[column-1] & COLUMN_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
         return _columnName[column - 1];
     }
 
     public String getSchemaName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_schemaName[column - 1]);
+        if ((_error[column-1] & SCHEMA_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
         return _schemaName[column - 1];
     }
 
     public int getPrecision(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_precision[column - 1]);
-        return _precision[column - 1].intValue();
+        if ((_error[column-1] & PRECISION_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
+        return _precision[column - 1];
     }
 
     public int getScale(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_scale[column - 1]);
-        return _scale[column - 1].intValue();
+        if ((_error[column-1] & SCALE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _scale[column - 1];
     }
 
     public String getTableName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_tableName[column - 1]);
+        if ((_error[column-1] & TABLE_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
         return _tableName[column - 1];
     }
 
     public String getCatalogName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_catalogName[column - 1]);
+        if ((_error[column-1] & CATALOG_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }        
         return _catalogName[column - 1];
     }
 
     public int getColumnType(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnType[column - 1]);
-        return _columnType[column - 1].intValue();
+        if ((_error[column-1] & COLUMN_TYPE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _columnType[column - 1];
     }
 
     public String getColumnTypeName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnTypeName[column - 1]);
+        if ((_error[column-1] & COLUMN_TYPE_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
         return _columnTypeName[column - 1];
     }
 
     public boolean isReadOnly(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_readOnly[column - 1]);
-        return _readOnly[column - 1].booleanValue();
+        if ((_error[column-1] & READ_ONLY_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _readOnly[column - 1];
     }
 
     public boolean isWritable(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_writable[column - 1]);
-        return _writable[column - 1].booleanValue();
+        if ((_error[column-1] & WRITABLE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _writable[column - 1];
     }
 
     public boolean isDefinitelyWritable(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_definitivelyWritable[column - 1]);
-        return _definitivelyWritable[column - 1].booleanValue();
+        if ((_error[column-1] & DEFINITIVELY_WRITABLE_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
+        return _definitivelyWritable[column - 1];
     }
 
     public String getColumnClassName(int column) throws SQLException {
         checkColumnIndex(column);
-        throwIfNull(_columnClassName[column - 1]);
+        if ((_error[column-1] & COLUMN_CLASS_NAME_ERROR_MASK)!=0){
+        	throw new SQLException("Error on server side");
+        }
         return _columnClassName[column - 1];
     }
 
@@ -477,13 +564,13 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setAutoIncrement(int columnIndex, boolean property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _autoIncrement[columnIndex - 1] = new Boolean(property);
+        _autoIncrement[columnIndex - 1] = property;
     }
 
     public void setCaseSensitive(int columnIndex, boolean property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _caseSensitive[columnIndex - 1] = new Boolean(property);
+        _caseSensitive[columnIndex - 1] = property;
     }
 
     public void setCatalogName(int columnIndex, String catalogName)
@@ -495,7 +582,7 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setColumnDisplaySize(int columnIndex, int size)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _columnDisplaySize[columnIndex - 1] = new Integer(size);
+        _columnDisplaySize[columnIndex - 1] = size;
     }
 
     public void setColumnLabel(int columnIndex, String label)
@@ -513,7 +600,7 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setColumnType(int columnIndex, int SQLType)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _columnType[columnIndex - 1] = new Integer(SQLType);
+        _columnType[columnIndex - 1] = SQLType;
     }
 
     public void setColumnTypeName(int columnIndex, String typeName)
@@ -525,25 +612,25 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setCurrency(int columnIndex, boolean property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _currency[columnIndex - 1] = new Boolean(property);
+        _currency[columnIndex - 1] = property;
     }
 
     public void setNullable(int columnIndex, int property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _nullable[columnIndex - 1] = new Integer(property);
+        _nullable[columnIndex - 1] = property;
     }
 
     public void setPrecision(int columnIndex, int precision)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _precision[columnIndex - 1] = new Integer(precision);
+        _precision[columnIndex - 1] = precision;
     }
 
     public void setScale(int columnIndex, int scale)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _scale[columnIndex - 1] = new Integer(scale);
+        _scale[columnIndex - 1] = scale;
     }
 
     public void setSchemaName(int columnIndex, String schemaName)
@@ -555,13 +642,13 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setSearchable(int columnIndex, boolean property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _searchable[columnIndex - 1] = new Boolean(property);
+        _searchable[columnIndex - 1] = property;
     }
 
     public void setSigned(int columnIndex, boolean property)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _signed[columnIndex - 1] = new Boolean(property);
+        _signed[columnIndex - 1] = property;
     }
 
     public void setTableName(int columnIndex, String tableName)
@@ -573,31 +660,25 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
     public void setReadOnly(int columnIndex, boolean readOnly)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _readOnly[columnIndex - 1] = new Boolean(readOnly);
+        _readOnly[columnIndex - 1] = readOnly;
     }
 
     public void setWritable(int columnIndex, boolean writable)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _writable[columnIndex - 1] = new Boolean(writable);
+        _writable[columnIndex - 1] = writable;
     }
 
     public void setDefinitelyWritable(int columnIndex, boolean writable)
         throws SQLException {
         checkColumnIndex(columnIndex);
-        _definitivelyWritable[columnIndex - 1] = new Boolean(writable);
+        _definitivelyWritable[columnIndex - 1] = writable;
     }
 
     public void setColumnClassName(int columnIndex, String columnClassName)
         throws SQLException {
         checkColumnIndex(columnIndex);
         _columnClassName[columnIndex - 1] = columnClassName;
-    }
-
-    private void throwIfNull(Object obj) throws SQLException {
-        if(obj == null) {
-            throw new SQLException("Method not supported");
-        }
     }
 
     private void checkColumnIndex(int columnIndex) throws SQLException {
@@ -615,5 +696,78 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Externalizabl
         return (T)this;
     }
     /* end JDBC4 support */
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(_columnCount);
+
+		kryo.writeObjectOrNull(output, _error, int[].class);
+		
+		kryo.writeObjectOrNull(output, _catalogName, String[].class);
+		kryo.writeObjectOrNull(output, _schemaName, String[].class);
+		kryo.writeObjectOrNull(output, _tableName, String[].class);
+		kryo.writeObjectOrNull(output, _columnClassName, String[].class);
+		kryo.writeObjectOrNull(output, _columnLabel, String[].class);
+		kryo.writeObjectOrNull(output, _columnName, String[].class);
+		kryo.writeObjectOrNull(output, _columnTypeName, String[].class);
+
+		kryo.writeObjectOrNull(output, _columnType, int[].class);
+		kryo.writeObjectOrNull(output, _columnDisplaySize, int[].class);
+		kryo.writeObjectOrNull(output, _precision, int[].class);
+		kryo.writeObjectOrNull(output, _scale, int[].class);
+		kryo.writeObjectOrNull(output, _nullable, int[].class);
+
+		kryo.writeObjectOrNull(output, _autoIncrement, boolean[].class);
+		kryo.writeObjectOrNull(output, _caseSensitive, boolean[].class);
+		kryo.writeObjectOrNull(output, _currency, boolean[].class);
+		kryo.writeObjectOrNull(output, _readOnly, boolean[].class);
+		kryo.writeObjectOrNull(output, _searchable, boolean[].class);
+		kryo.writeObjectOrNull(output, _signed, boolean[].class);
+		kryo.writeObjectOrNull(output, _writable, boolean[].class);
+		kryo.writeObjectOrNull(output, _definitivelyWritable, boolean[].class);
+
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_columnCount = input.readInt();
+
+	    _error = kryo.readObjectOrNull(input, int[].class);
+
+	    _catalogName = kryo.readObjectOrNull(input, String[].class);
+	    _schemaName = kryo.readObjectOrNull(input, String[].class);
+	    _tableName = kryo.readObjectOrNull(input, String[].class);
+	    _columnClassName = kryo.readObjectOrNull(input, String[].class);
+	    _columnLabel = kryo.readObjectOrNull(input, String[].class);
+	    _columnName = kryo.readObjectOrNull(input, String[].class);
+	    _columnTypeName = kryo.readObjectOrNull(input, String[].class);
+
+	    _columnType = kryo.readObjectOrNull(input, int[].class);
+	    _columnDisplaySize = kryo.readObjectOrNull(input, int[].class);
+	    _precision = kryo.readObjectOrNull(input, int[].class);
+	    _scale = kryo.readObjectOrNull(input, int[].class);
+	    _nullable = kryo.readObjectOrNull(input, int[].class);
+
+	    _autoIncrement = kryo.readObjectOrNull(input, boolean[].class);
+	    _caseSensitive = kryo.readObjectOrNull(input, boolean[].class);
+	    _currency = kryo.readObjectOrNull(input, boolean[].class);
+	    _readOnly = kryo.readObjectOrNull(input, boolean[].class);
+	    _searchable = kryo.readObjectOrNull(input, boolean[].class);
+	    _signed = kryo.readObjectOrNull(input, boolean[].class);
+	    _writable = kryo.readObjectOrNull(input, boolean[].class);
+	    _definitivelyWritable = kryo.readObjectOrNull(input, boolean[].class);
+	}
+
+	String[] getColumnLabels() {
+		return _columnLabel;
+	}
+
+	String[] getColumnNames() {
+		return _columnName;
+	}
+
+	int[] getColumnTypes() {
+		return _columnType;
+	}
 }
 

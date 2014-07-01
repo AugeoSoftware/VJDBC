@@ -12,6 +12,11 @@ import de.simplicit.vjdbc.VirtualStatement;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
@@ -19,7 +24,7 @@ import java.sql.*;
 import java.util.Calendar;
 import java.util.Map;
 
-public class StreamingResultSet implements ResultSet, Externalizable {
+public class StreamingResultSet implements ResultSet, Externalizable,KryoSerializable {
     static final long serialVersionUID = 8291019975153433161L;
 
     private static Log _logger = LogFactory.getLog(StreamingResultSet.class);
@@ -108,19 +113,22 @@ public class StreamingResultSet implements ResultSet, Externalizable {
         if(_prefetchMetaData) {
             _logger.debug("Fetching MetaData of ResultSet");
             _metaData = new SerialResultSetMetaData(metaData);
+            // use already retrieved arrays
+            _columnTypes = _metaData.getColumnTypes();
+            _columnNames = _metaData.getColumnNames();
+            _columnLabels = _metaData.getColumnLabels();
+        } else {
+	        int columnCount = metaData.getColumnCount();
+	        _columnTypes = new int[columnCount];
+	        _columnNames = new String[columnCount];
+	        _columnLabels = new String[columnCount];
+	
+	        for(int i = 1; i <= columnCount; i++) {
+	            _columnTypes[i-1] = metaData.getColumnType(i);
+	            _columnNames[i-1] = metaData.getColumnName(i).toLowerCase();
+	            _columnLabels[i-1] = metaData.getColumnLabel(i).toLowerCase();
+	        }
         }
-
-        int columnCount = metaData.getColumnCount();
-        _columnTypes = new int[columnCount];
-        _columnNames = new String[columnCount];
-        _columnLabels = new String[columnCount];
-
-        for(int i = 1; i <= columnCount; i++) {
-            _columnTypes[i-1] = metaData.getColumnType(i);
-            _columnNames[i-1] = metaData.getColumnName(i).toLowerCase();
-            _columnLabels[i-1] = metaData.getColumnLabel(i).toLowerCase();
-        }
-
         // Create first ResultSet-Part
         _rows = new RowPacket(_rowPacketSize, _forwardOnly);
         // Populate it
@@ -1716,4 +1724,45 @@ public class StreamingResultSet implements ResultSet, Externalizable {
         return (T)this;
     }
     /* end JDBC4 support */
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _metaData, SerialResultSetMetaData.class);		
+		if (_metaData==null){
+			// write partial metadata only if full metadata is absent
+	    	kryo.writeObjectOrNull(output, _columnTypes, int[].class);
+	    	kryo.writeObjectOrNull(output, _columnNames, String[].class);
+	    	kryo.writeObjectOrNull(output, _columnLabels, String[].class);
+	    }
+	    
+	    kryo.writeObjectOrNull(output, _rows, RowPacket.class);
+	    output.writeInt(_rowPacketSize);
+	    output.writeBoolean(_forwardOnly);
+	    kryo.writeObjectOrNull(output, _charset, String.class);
+	    output.writeBoolean(_lastPartReached);
+	    kryo.writeObjectOrNull(output, _remainingResultSet, UIDEx.class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_metaData = kryo.readObjectOrNull(input, SerialResultSetMetaData.class);		
+		if (_metaData==null){
+	    	_columnTypes = kryo.readObjectOrNull(input, int[].class);
+	    	_columnNames = kryo.readObjectOrNull(input, String[].class);
+	    	_columnLabels = kryo.readObjectOrNull(input, String[].class);
+	    } else {
+	    	_columnTypes = _metaData.getColumnTypes();
+	    	_columnNames = _metaData.getColumnNames();
+	    	_columnLabels = _metaData.getColumnLabels();
+	    }
+	    
+	    _rows = kryo.readObjectOrNull(input, RowPacket.class);
+	    
+	    _rowPacketSize = input.readInt();
+	    _forwardOnly = input.readBoolean();
+	    _charset = kryo.readObjectOrNull(input, String.class);
+	    
+	    _lastPartReached = input.readBoolean();
+	    _remainingResultSet = kryo.readObjectOrNull(input, UIDEx.class);		
+	}
 }

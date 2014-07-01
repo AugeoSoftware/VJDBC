@@ -8,9 +8,14 @@ import java.io.*;
 import java.sql.Clob;
 import java.sql.SQLException;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 
-public class SerialClob implements Clob, Externalizable {
+public class SerialClob implements Clob, Externalizable, KryoSerializable {
     private static final long serialVersionUID = 3904682695287452212L;
 
     protected char[] _data;
@@ -157,4 +162,14 @@ public class SerialClob implements Clob, Externalizable {
         _data = null;
     }
     /* end JDBC4 support */
+
+	@Override
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObjectOrNull(output, _data, char[].class);
+	}
+
+	@Override
+	public void read(Kryo kryo, Input input) {
+		_data = kryo.readObjectOrNull(input, char[].class);
+	}
 }
