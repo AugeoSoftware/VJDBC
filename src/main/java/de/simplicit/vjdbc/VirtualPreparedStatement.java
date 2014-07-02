@@ -132,15 +132,15 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
     }
 
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scale) throws SQLException {
-        setParam(parameterIndex, new ObjectParameter(x, new Integer(targetSqlType), new Integer(scale)));
+        setParam(parameterIndex, new ObjectParameter(x, targetSqlType, scale));
     }
 
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
-        setParam(parameterIndex, new ObjectParameter(x, new Integer(targetSqlType), null));
+        setParam(parameterIndex, new ObjectParameter(x, targetSqlType));
     }
 
     public void setObject(int parameterIndex, Object x) throws SQLException {
-        setParam(parameterIndex, new ObjectParameter(x, null, null));
+        setParam(parameterIndex, new ObjectParameter(x));
     }
 
     public boolean execute() throws SQLException {

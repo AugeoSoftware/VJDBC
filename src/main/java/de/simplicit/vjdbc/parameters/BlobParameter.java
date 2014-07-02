@@ -25,7 +25,15 @@ public class BlobParameter implements PreparedStatementParameter {
         _value = new SerialBlob(value);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    BlobParameter(SerialBlob value) {
+		_value = value;
+	}
+
+    SerialBlob getValue() {
+    	return _value;
+    }
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _value = (SerialBlob)in.readObject();
     }
 

@@ -25,7 +25,16 @@ public class RowIdParameter implements PreparedStatementParameter {
         _value = new SerialRowId(value);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public RowIdParameter(SerialRowId value) {
+		this._value = value;
+	}
+
+
+    public SerialRowId getValue() {
+		return _value;
+	}
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _value = (SerialRowId)in.readObject();
     }
 

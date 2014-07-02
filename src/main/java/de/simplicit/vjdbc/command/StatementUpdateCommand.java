@@ -36,7 +36,7 @@ public class StatementUpdateCommand implements Command,KryoSerializable {
     }
 
     public Object execute(Object target, ConnectionContext ctx) throws SQLException {
-        return new Integer(((Statement) target).executeUpdate(ctx.resolveOrCheckQuery(_sql)));
+        return Integer.valueOf(((Statement) target).executeUpdate(ctx.resolveOrCheckQuery(_sql)));
     }
 
     public String toString() {

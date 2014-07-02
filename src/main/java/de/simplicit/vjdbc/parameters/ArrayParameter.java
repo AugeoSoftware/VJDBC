@@ -25,7 +25,11 @@ public class ArrayParameter implements PreparedStatementParameter {
         _value = new SerialArray(value);
     }
     
-    public SerialArray getValue() {
+    ArrayParameter(SerialArray value) {
+		_value = value;
+	}
+
+	public SerialArray getValue() {
         return _value;
     }
 

@@ -33,8 +33,13 @@ public class CharStreamParameter implements PreparedStatementParameter {
             throw SQLExceptionHelper.wrap(e);
         }
     }
+    
+   CharStreamParameter(char[] value) {
+		super();
+		this._value = value;
+	}
 
-    public char[] getValue() {
+	public char[] getValue() {
         return _value;
     }
 

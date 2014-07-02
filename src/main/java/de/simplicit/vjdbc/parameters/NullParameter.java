@@ -24,7 +24,15 @@ public class NullParameter implements PreparedStatementParameter {
         _typeName = typename;
     }
     
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public int getSqlType() {
+		return _sqlType;
+	}
+
+    public String getTypeName() {
+		return _typeName;
+	}
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _sqlType = in.readInt();
         _typeName = (String)in.readObject();
     }

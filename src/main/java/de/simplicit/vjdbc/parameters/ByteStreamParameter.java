@@ -52,9 +52,26 @@ public class ByteStreamParameter implements PreparedStatementParameter {
         }
     }
 
-    public byte[] getValue() {
+    
+    
+    ByteStreamParameter(int type, byte[] value, long length) {
+		super();
+		_type = type;
+		_value = value;
+		_length = length;
+	}
+
+	public byte[] getValue() {
         return _value;
     }
+	
+	public int getType() {
+		return _type;
+	}
+
+	public long getLength() {
+		return _length;
+	}	
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _type = in.readInt();
@@ -91,4 +108,6 @@ public class ByteStreamParameter implements PreparedStatementParameter {
     public String toString() {
         return "ByteStream: " + _length + " bytes";
     }
+
+
 }

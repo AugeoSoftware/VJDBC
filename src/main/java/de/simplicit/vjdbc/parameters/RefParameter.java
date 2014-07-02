@@ -25,7 +25,17 @@ public class RefParameter implements PreparedStatementParameter {
         _value = new SerialRef(value);
     }
     
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public RefParameter(SerialRef value) {
+		this._value = value;
+	}
+
+	public SerialRef getValue() {
+		return _value;
+	}
+
+
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _value = (SerialRef)in.readObject();
     }
 

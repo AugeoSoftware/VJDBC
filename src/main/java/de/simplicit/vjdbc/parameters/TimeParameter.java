@@ -30,7 +30,11 @@ public class TimeParameter implements PreparedStatementParameter {
         return _value;
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public Calendar getCalendar() {
+		return _calendar;
+	}
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _value = (Time)in.readObject();
         _calendar = (Calendar)in.readObject();
     }

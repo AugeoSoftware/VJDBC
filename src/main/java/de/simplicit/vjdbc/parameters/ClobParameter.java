@@ -25,7 +25,13 @@ public class ClobParameter implements PreparedStatementParameter {
         _value = new SerialClob(value);
     }
     
-    public SerialClob getValue() {
+    
+    public ClobParameter(SerialClob value) {
+		super();
+		this._value = value;
+	}
+
+	public SerialClob getValue() {
         return _value;
     }
 

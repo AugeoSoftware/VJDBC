@@ -25,7 +25,15 @@ public class SQLXMLParameter implements PreparedStatementParameter {
         _value = new SerialSQLXML(value);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public SQLXMLParameter(SerialSQLXML value) {
+		this._value = value;
+	}
+
+	public SerialSQLXML getValue() {
+		return _value;
+	}
+
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _value = (SerialSQLXML)in.readObject();
     }
 

@@ -44,7 +44,7 @@ public class PreparedStatementUpdateCommand implements Command,KryoSerializable 
                 _params[i].setParameter(pstmt, i + 1);
             }
         }
-        return new Integer(pstmt.executeUpdate());
+        return Integer.valueOf(pstmt.executeUpdate());
     }
 
     public String toString() {
