@@ -420,7 +420,8 @@ public class RowPacket implements Externalizable {
         		throw new SQLException("attempt to merge row packet with different length");
         	}
         	// avoid copying data, just put the packets in list
-        	rsp._offset = this._offset + this._rowCount;
+        	RowPacket last = chain.get(chain.size()-1);
+        	rsp._offset = last._offset + last._rowCount;
         	chain.add(rsp);
         }
     }
