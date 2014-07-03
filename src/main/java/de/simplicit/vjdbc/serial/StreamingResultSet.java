@@ -1494,16 +1494,17 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     /* start JDBC4 support */
-    public RowId getRowId(int parameterIndex) throws SQLException {
-        return (RowId)_commandSink.process(_remainingResultSet, CommandPool.getReflectiveCommand(JdbcInterfaceType.RESULTSETHOLDER, "getRowId",
-                new Object[]{new Integer(parameterIndex)},
-                ParameterTypeCombinations.INT));
+    public RowId getRowId(int columnIndex) throws SQLException {
+        columnIndex--;
+        if(preGetCheckNull(columnIndex)) {
+            return (RowId) _actualRow[columnIndex];
+        } else {
+            return null;
+        }
     }
 
-    public RowId getRowId(String parameterName) throws SQLException {
-        return (RowId)_commandSink.process(_remainingResultSet, CommandPool.getReflectiveCommand(JdbcInterfaceType.RESULTSETHOLDER, "getRowId",
-                new Object[]{parameterName},
-                ParameterTypeCombinations.STR));
+    public RowId getRowId(String columnName) throws SQLException {
+    	return getRowId(getIndexForName(columnName));
     }
 
     public void setRowId(String parameterName, RowId x) throws SQLException {
