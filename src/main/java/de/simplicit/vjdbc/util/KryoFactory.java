@@ -1,10 +1,25 @@
 package de.simplicit.vjdbc.util;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.command.CallableStatementGetArrayCommand;
@@ -27,9 +42,12 @@ import de.simplicit.vjdbc.command.CallableStatementSetObjectCommand;
 import de.simplicit.vjdbc.command.CallableStatementSetRowIdCommand;
 import de.simplicit.vjdbc.command.CallableStatementSetSQLXMLCommand;
 import de.simplicit.vjdbc.command.ConnectionCommitCommand;
+import de.simplicit.vjdbc.command.ConnectionCommitCommandSerializer;
 import de.simplicit.vjdbc.command.ConnectionCreateStatementCommand;
+import de.simplicit.vjdbc.command.ConnectionCreateStatementCommandSerializer;
 import de.simplicit.vjdbc.command.ConnectionGetAutoCommitCommand;
-import de.simplicit.vjdbc.command.ConnectionGetMetaData;
+import de.simplicit.vjdbc.command.ConnectionGetMetaDataCommand;
+import de.simplicit.vjdbc.command.ConnectionGetMetaDataCommandSerializer;
 import de.simplicit.vjdbc.command.ConnectionPrepareCallCommand;
 import de.simplicit.vjdbc.command.ConnectionPrepareStatementCommand;
 import de.simplicit.vjdbc.command.ConnectionPrepareStatementExtendedCommand;
@@ -39,13 +57,19 @@ import de.simplicit.vjdbc.command.ConnectionSetAutoCommitCommand;
 import de.simplicit.vjdbc.command.ConnectionSetClientInfoCommand;
 import de.simplicit.vjdbc.command.DatabaseMetaDataGetDriverNameCommand;
 import de.simplicit.vjdbc.command.DatabaseMetaDataGetUserNameCommand;
+import de.simplicit.vjdbc.command.DatabaseMetaDataGetUserNameCommandSerializer;
 import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.DestroyCommandSerializer;
 import de.simplicit.vjdbc.command.NextRowPacketCommand;
+import de.simplicit.vjdbc.command.NextRowPacketCommandSerializer;
 import de.simplicit.vjdbc.command.PingCommand;
+import de.simplicit.vjdbc.command.PingCommandSerializer;
 import de.simplicit.vjdbc.command.PreparedStatementExecuteBatchCommand;
 import de.simplicit.vjdbc.command.PreparedStatementExecuteCommand;
 import de.simplicit.vjdbc.command.PreparedStatementQueryCommand;
+import de.simplicit.vjdbc.command.PreparedStatementQueryCommandSerializer;
 import de.simplicit.vjdbc.command.PreparedStatementUpdateCommand;
+import de.simplicit.vjdbc.command.PreparedStatementUpdateCommandSerializer;
 import de.simplicit.vjdbc.command.ReflectiveCommand;
 import de.simplicit.vjdbc.command.ResultSetGetMetaDataCommand;
 import de.simplicit.vjdbc.command.ResultSetProducerCommand;
@@ -57,7 +81,9 @@ import de.simplicit.vjdbc.command.StatementGetGeneratedKeysCommand;
 import de.simplicit.vjdbc.command.StatementGetResultSetCommand;
 import de.simplicit.vjdbc.command.StatementQueryCommand;
 import de.simplicit.vjdbc.command.StatementSetFetchSizeCommand;
+import de.simplicit.vjdbc.command.StatementSetFetchSizeCommandSerializer;
 import de.simplicit.vjdbc.command.StatementUpdateCommand;
+import de.simplicit.vjdbc.command.StatementUpdateCommandSerializer;
 import de.simplicit.vjdbc.command.StatementUpdateExtendedCommand;
 import de.simplicit.vjdbc.parameters.ArrayParameter;
 import de.simplicit.vjdbc.parameters.ArrayParameterSerializer;
@@ -130,6 +156,8 @@ import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.serial.UIDExSerializer;
 
 public class KryoFactory {
+	
+    private final static Log logger = LogFactory.getLog(KryoFactory.class);
 
 	private static final RowPacketSerializer ROW_PACKET_SERIALIZER = new RowPacketSerializer();
 	private static final UIDExSerializer UIDEX_SERIALIZER = new UIDExSerializer();
@@ -166,7 +194,68 @@ public class KryoFactory {
 	private static final TimestampParameterSerializer TIMESTAMP_PARAMETER_SERIALIZER = new TimestampParameterSerializer();
 	private static final URLParameterSerializer URL_PARAMETER_SERIALIZER = new URLParameterSerializer();
 	
+	private static final NextRowPacketCommandSerializer NEXT_ROW_PACKET_COMMAND_SERIALIZER = new NextRowPacketCommandSerializer();
+	private static final DestroyCommandSerializer  DESTROY_COMMAND_SERIALIZER = new DestroyCommandSerializer();
+	private static final PreparedStatementQueryCommandSerializer PREPARED_STATEMENT_QUERY_COMMAND_SERIALIZER = new PreparedStatementQueryCommandSerializer();
+	private static final PingCommandSerializer PING_COMMAND_SERIALIZER = new PingCommandSerializer();
+	private static final ConnectionCommitCommandSerializer CONNECTION_COMMIT_COMMAND_SERIALIZER = new ConnectionCommitCommandSerializer();
+	private static final DatabaseMetaDataGetUserNameCommandSerializer DATABASE_META_DATA_GET_USER_NAME_COMMAND_SERIALIZER = new DatabaseMetaDataGetUserNameCommandSerializer();
+	private static final ConnectionCreateStatementCommandSerializer CONNECTION_CREATE_STATEMENT_COMMAND_SERIALIZER = new ConnectionCreateStatementCommandSerializer();
+	private static final ConnectionGetMetaDataCommandSerializer CONNECTION_GET_META_DATA_COMMAND_SERIALIZER = new ConnectionGetMetaDataCommandSerializer();
+	
+	private static final StatementSetFetchSizeCommandSerializer STATEMENT_SET_FETCH_SIZE_COMMAND_SERIALIZER = new StatementSetFetchSizeCommandSerializer();
+	private static final PreparedStatementUpdateCommandSerializer PREPARED_STATEMENT_UPDATE_COMMAND_SERIALIZER = new PreparedStatementUpdateCommandSerializer();
+	private static final StatementUpdateCommandSerializer STATEMENT_UPDATE_COMMAND_SERIALIZER = new StatementUpdateCommandSerializer();
+	
+	
 	private final ConcurrentLinkedQueue<Kryo> kryoCache = new ConcurrentLinkedQueue<Kryo>();
+	
+	private ConcurrentMap<String, AtomicInteger> instanceCount = new ConcurrentHashMap<String, AtomicInteger>();
+	/** 
+	 * Utility class for gathering statistic number of instantiations via reflection
+	 */
+	class KryoSerializableCountingSerializer extends Serializer<KryoSerializable> {
+		public void write (Kryo kryo, Output output, KryoSerializable object) {
+			object.write(kryo, output);
+		}
+
+		public KryoSerializable read (Kryo kryo, Input input, Class<KryoSerializable> type) {
+			count(type.getName());
+			KryoSerializable object = kryo.newInstance(type);
+			kryo.reference(object);
+			object.read(kryo, input);
+			return object;
+		}
+		
+		private void count(String type){
+			AtomicInteger i = new AtomicInteger(1);
+			AtomicInteger v = instanceCount.putIfAbsent(type, i);
+			if (v!=null){
+				v.incrementAndGet();
+			}			
+		}
+		
+	}
+	
+	private final KryoSerializableCountingSerializer KRYO_SERIALIZABLE_COUNTING_SERIALIZER = new KryoSerializableCountingSerializer();
+	
+	public void dumpInstanceCount(){
+		int size = instanceCount.size();
+		if (size>0){			
+			logger.debug("==== Instance count dump ====");
+			ArrayList<Map.Entry<String,AtomicInteger>> list = new ArrayList<Map.Entry<String, AtomicInteger>>(instanceCount.entrySet());
+			Collections.sort(list, new Comparator<Map.Entry<String,AtomicInteger>>() {
+				@Override
+				public int compare(Entry<String, AtomicInteger> o1, Entry<String, AtomicInteger> o2) {
+					return Integer.valueOf(o1.getValue().get()).compareTo(Integer.valueOf(o2.getValue().get()));
+				}
+			});
+			
+			for (Map.Entry<String,AtomicInteger> me: list){
+				logger.debug("class: "+me.getKey()+": "+me.getValue().get());
+			}
+		}
+	}
 	
 
 	/**
@@ -223,21 +312,21 @@ public class KryoFactory {
 		kryo.register(CallableStatementSetObjectCommand.class);
 		kryo.register(CallableStatementSetRowIdCommand.class);
 		kryo.register(CallableStatementSetSQLXMLCommand.class);
-		kryo.register(ConnectionCommitCommand.class);
+		kryo.register(ConnectionCommitCommand.class, CONNECTION_COMMIT_COMMAND_SERIALIZER);
 		kryo.register(ConnectionPrepareCallCommand.class);
 		kryo.register(ConnectionPrepareStatementCommand.class);
 		kryo.register(ConnectionPrepareStatementExtendedCommand.class);
 		kryo.register(ConnectionReleaseSavepointCommand.class);
 		kryo.register(ConnectionRollbackWithSavepointCommand.class);
 		kryo.register(ConnectionSetClientInfoCommand.class);
-		kryo.register(DatabaseMetaDataGetUserNameCommand.class);
-		kryo.register(DestroyCommand.class);
-		kryo.register(NextRowPacketCommand.class);
-		kryo.register(PingCommand.class);
+		kryo.register(DatabaseMetaDataGetUserNameCommand.class, DATABASE_META_DATA_GET_USER_NAME_COMMAND_SERIALIZER);
+		kryo.register(DestroyCommand.class, DESTROY_COMMAND_SERIALIZER);
+		kryo.register(NextRowPacketCommand.class, NEXT_ROW_PACKET_COMMAND_SERIALIZER);
+		kryo.register(PingCommand.class, PING_COMMAND_SERIALIZER);
 		kryo.register(PreparedStatementExecuteBatchCommand.class);
 		kryo.register(PreparedStatementExecuteCommand.class);
-		kryo.register(PreparedStatementQueryCommand.class);
-		kryo.register(PreparedStatementUpdateCommand.class);
+		kryo.register(PreparedStatementQueryCommand.class, PREPARED_STATEMENT_QUERY_COMMAND_SERIALIZER);
+		kryo.register(PreparedStatementUpdateCommand.class, PREPARED_STATEMENT_UPDATE_COMMAND_SERIALIZER);
 		kryo.register(ReflectiveCommand.class);
 		kryo.register(ResultSetGetMetaDataCommand.class);
 		kryo.register(ResultSetProducerCommand.class);
@@ -248,14 +337,14 @@ public class KryoFactory {
 		kryo.register(StatementGetGeneratedKeysCommand.class);
 		kryo.register(StatementGetResultSetCommand.class);
 		kryo.register(StatementQueryCommand.class);
-		kryo.register(StatementUpdateCommand.class);
+		kryo.register(StatementUpdateCommand.class, STATEMENT_UPDATE_COMMAND_SERIALIZER);
 		kryo.register(StatementUpdateExtendedCommand.class);
-		kryo.register(ConnectionCreateStatementCommand.class);
+		kryo.register(ConnectionCreateStatementCommand.class, CONNECTION_CREATE_STATEMENT_COMMAND_SERIALIZER);
 		kryo.register(ConnectionGetAutoCommitCommand.class);
-		kryo.register(ConnectionGetMetaData.class);
+		kryo.register(ConnectionGetMetaDataCommand.class, CONNECTION_GET_META_DATA_COMMAND_SERIALIZER);
 		kryo.register(ConnectionSetAutoCommitCommand.class);
 		kryo.register(DatabaseMetaDataGetDriverNameCommand.class);
-		kryo.register(StatementSetFetchSizeCommand.class);
+		kryo.register(StatementSetFetchSizeCommand.class, STATEMENT_SET_FETCH_SIZE_COMMAND_SERIALIZER);
 		
 		// Parameters
 		kryo.register(ArrayParameter.class, ARRAY_PARAMETER_SERIALIZER);

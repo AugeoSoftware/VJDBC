@@ -47,7 +47,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public Statement createStatement() throws SQLException {
-    	Object result = _sink.process(_objectUid, new ConnectionCreateStatementCommand());
+    	Object result = _sink.process(_objectUid, ConnectionCreateStatementCommand.INSTANCE);
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
             return new VirtualStatement(reg, this, _sink, ResultSet.TYPE_FORWARD_ONLY);
@@ -121,7 +121,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public void commit() throws SQLException {
-        _sink.processWithBooleanResult(_objectUid, new ConnectionCommitCommand());
+        _sink.processWithBooleanResult(_objectUid, ConnectionCommitCommand.INSTANCE);
     }
 
     public void rollback() throws SQLException {
@@ -145,7 +145,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public DatabaseMetaData getMetaData() throws SQLException {
         if(_databaseMetaData == null) {
-        	Object result = _sink.process(_objectUid, new ConnectionGetMetaData());
+        	Object result = _sink.process(_objectUid, ConnectionGetMetaDataCommand.INSTANCE);
             if (result instanceof UIDEx) {
                 UIDEx reg = (UIDEx)result;
                 _databaseMetaData = new VirtualDatabaseMetaData(this, reg, _sink);

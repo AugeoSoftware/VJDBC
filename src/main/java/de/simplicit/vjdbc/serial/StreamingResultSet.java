@@ -148,7 +148,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         } else {
             if(!_lastPartReached) {
                 try {
-                    SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, new NextRowPacketCommand());
+                    SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
                     RowPacket rsp = (RowPacket)st.getTransportee();
 
                     if(rsp.isLastPart()) {
@@ -1431,7 +1431,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     private boolean requestNextRowPacket() throws SQLException {
         if(!_lastPartReached) {
             try {
-                SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, new NextRowPacketCommand());
+                SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
                 RowPacket rsp = (RowPacket)st.getTransportee();
                 if(rsp.isLastPart()) {
                     _lastPartReached = true;

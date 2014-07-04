@@ -18,7 +18,7 @@ import java.util.TimerTask;
  * there aren't any RMI-Calls for a specific time (lease value).
  */
 public class KeepAliveTimerTask extends TimerTask implements CommandSinkListener {
-    private static Command _dummyCommand = new PingCommand();
+    private static Command _dummyCommand = PingCommand.INSTANCE;
     private DecoratedCommandSink _sink;
     private boolean _ignoreNextPing = false;
 

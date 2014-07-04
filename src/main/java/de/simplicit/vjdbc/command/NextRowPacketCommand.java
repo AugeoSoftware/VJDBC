@@ -11,15 +11,12 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.sql.SQLException;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
-public class NextRowPacketCommand implements Command,KryoSerializable {
+public class NextRowPacketCommand implements Command {
     static final long serialVersionUID = -8463588846424302034L;
 
-    public NextRowPacketCommand() {
+    public static final NextRowPacketCommand INSTANCE = new NextRowPacketCommand();
+
+    private NextRowPacketCommand() {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -37,12 +34,4 @@ public class NextRowPacketCommand implements Command,KryoSerializable {
     public String toString() {
         return "NextRowPacketCommand";
     }
-
-	@Override
-	public void write(Kryo kryo, Output output) {
-	}
-
-	@Override
-	public void read(Kryo kryo, Input input) {
-	}
 }

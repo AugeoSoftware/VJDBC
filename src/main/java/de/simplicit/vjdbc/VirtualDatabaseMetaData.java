@@ -50,7 +50,7 @@ public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMeta
 
     public String getUserName() throws SQLException {
         //return (String) _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.DATABASEMETADATA, "getUserName"));
-    	return (String) _sink.process(_objectUid, new DatabaseMetaDataGetUserNameCommand());
+    	return (String) _sink.process(_objectUid, DatabaseMetaDataGetUserNameCommand.INSTANCE);
     }
 
     public boolean isReadOnly() throws SQLException {
