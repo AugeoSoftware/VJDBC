@@ -130,8 +130,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Object getObject(int parameterIndex) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetObjectCommand(parameterIndex));
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, new CallableStatementGetObjectCommand(parameterIndex));
             checkTransporteeForStreamingResultSet(transportee);
             return transportee;
         } catch(Exception e) {
@@ -147,8 +146,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Object getObject(int i, Map map) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetObjectCommand(i, map));
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, new CallableStatementGetObjectCommand(i, map));
             checkTransporteeForStreamingResultSet(transportee);
             return transportee;
         } catch(Exception e) {
@@ -159,8 +157,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Ref getRef(int i) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetRefCommand(i));
-            return (Ref)st.getTransportee();
+            return (Ref)_sink.process(_objectUid, new CallableStatementGetRefCommand(i));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -169,8 +166,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Blob getBlob(int i) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetBlobCommand(i));
-            return (Blob)st.getTransportee();
+            return (Blob)_sink.process(_objectUid, new CallableStatementGetBlobCommand(i));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -178,8 +174,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Clob getClob(int i) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetClobCommand(i));
-            return (Clob)st.getTransportee();
+            return (Clob)_sink.process(_objectUid, new CallableStatementGetClobCommand(i));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -187,8 +182,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
 
     public Array getArray(int i) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetArrayCommand(i));
-            return (Array)st.getTransportee();
+            return (Array)_sink.process(_objectUid, new CallableStatementGetArrayCommand(i));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -497,8 +491,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Object getObject(String parameterName) throws SQLException {
         try {
             CallableStatementGetObjectCommand cmd = new CallableStatementGetObjectCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, cmd);
             checkTransporteeForStreamingResultSet(transportee);
             return transportee;
         } catch(Exception e) {
@@ -515,8 +508,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Object getObject(String parameterName, Map map) throws SQLException {
         try {
             CallableStatementGetObjectCommand cmd = new CallableStatementGetObjectCommand(parameterName, map);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, cmd);
             checkTransporteeForStreamingResultSet(transportee);
             return transportee;
         } catch(Exception e) {
@@ -527,8 +519,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Ref getRef(String parameterName) throws SQLException {
         try {
             CallableStatementGetRefCommand cmd = new CallableStatementGetRefCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialRef)st.getTransportee();
+            return (SerialRef)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -537,8 +528,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Blob getBlob(String parameterName) throws SQLException {
         try {
             CallableStatementGetBlobCommand cmd = new CallableStatementGetBlobCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialBlob)st.getTransportee();
+            return (SerialBlob)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -547,8 +537,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Clob getClob(String parameterName) throws SQLException {
         try {
             CallableStatementGetClobCommand cmd = new CallableStatementGetClobCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialClob)st.getTransportee();
+            return (SerialClob)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -557,8 +546,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Array getArray(String parameterName) throws SQLException {
         try {
             CallableStatementGetArrayCommand cmd = new CallableStatementGetArrayCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialArray)st.getTransportee();
+            return (SerialArray)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -681,8 +669,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public NClob getNClob(int parameterIndex) throws SQLException {
         try {
             CallableStatementGetNClobCommand cmd = new CallableStatementGetNClobCommand(parameterIndex);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialNClob)st.getTransportee();
+            return (SerialNClob)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -691,8 +678,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public NClob getNClob(String parameterName) throws SQLException {
         try {
             CallableStatementGetNClobCommand cmd = new CallableStatementGetNClobCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialNClob)st.getTransportee();
+            return (SerialNClob)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -711,8 +697,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public SQLXML getSQLXML(int parameterIndex) throws SQLException {
         try {
             CallableStatementGetSQLXMLCommand cmd = new CallableStatementGetSQLXMLCommand(parameterIndex);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialSQLXML)st.getTransportee();
+            return (SerialSQLXML)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -721,8 +706,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public SQLXML getSQLXML(String parameterName) throws SQLException {
         try {
             CallableStatementGetSQLXMLCommand cmd = new CallableStatementGetSQLXMLCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return (SerialSQLXML)st.getTransportee();
+            return (SerialSQLXML)_sink.process(_objectUid, cmd);
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -743,8 +727,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Reader getNCharacterStream(int parameterIndex) throws SQLException {
         try {
             CallableStatementGetNCharacterStreamCommand cmd = new CallableStatementGetNCharacterStreamCommand(parameterIndex);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return new CharArrayReader((char[])st.getTransportee());
+            return new CharArrayReader((char[])_sink.process(_objectUid, cmd));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -753,8 +736,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Reader getNCharacterStream(String parameterName) throws SQLException {
         try {
             CallableStatementGetNCharacterStreamCommand cmd = new CallableStatementGetNCharacterStreamCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return new CharArrayReader((char[])st.getTransportee());
+            return new CharArrayReader((char[])_sink.process(_objectUid, cmd));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -763,8 +745,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Reader getCharacterStream(int parameterIndex) throws SQLException {
         try {
             CallableStatementGetCharacterStreamCommand cmd = new CallableStatementGetCharacterStreamCommand(parameterIndex);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return new CharArrayReader((char[])st.getTransportee());
+            return new CharArrayReader((char[])_sink.process(_objectUid, cmd));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -773,8 +754,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public Reader getCharacterStream(String parameterName) throws SQLException {
         try {
             CallableStatementGetCharacterStreamCommand cmd = new CallableStatementGetCharacterStreamCommand(parameterName);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            return new CharArrayReader((char[])st.getTransportee());
+            return new CharArrayReader((char[])_sink.process(_objectUid, cmd));
         } catch(Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }
@@ -895,8 +875,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
     public <T> T getObject(int parameterIndex, Class<T> clazz)
         throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, new CallableStatementGetObjectCommand(parameterIndex, clazz));
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, new CallableStatementGetObjectCommand(parameterIndex, clazz));
             checkTransporteeForStreamingResultSet(transportee);
             return (T)transportee;
         } catch(Exception e) {
@@ -908,8 +887,7 @@ public class VirtualCallableStatement extends VirtualPreparedStatement implement
         throws SQLException {
         try {
             CallableStatementGetObjectCommand cmd = new CallableStatementGetObjectCommand(parameterName, clazz);
-            SerializableTransport st = (SerializableTransport)_sink.process(_objectUid, cmd);
-            Object transportee = st.getTransportee();
+            Object transportee = _sink.process(_objectUid, cmd);
             checkTransporteeForStreamingResultSet(transportee);
             return (T)transportee;
         } catch(Exception e) {

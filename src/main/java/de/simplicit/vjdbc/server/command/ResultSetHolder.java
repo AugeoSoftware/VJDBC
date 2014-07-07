@@ -12,7 +12,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import de.simplicit.vjdbc.serial.RowPacket;
-import de.simplicit.vjdbc.serial.SerializableTransport;
 import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
 
 /**
@@ -27,7 +26,7 @@ public class ResultSetHolder {
     private boolean _readerThreadIsRunning = false;
 
     private ResultSet _resultSet;
-    private SerializableTransport _currentSerializedRowPacket;
+    private RowPacket _currentSerializedRowPacket;
     private ConnectionConfiguration _connectionConfiguration;
     private boolean _lastPartReached;
     private SQLException _lastOccurredException = null;
@@ -56,7 +55,7 @@ public class ResultSetHolder {
         }
     }
 
-    public SerializableTransport nextRowPacket() throws SQLException {
+    public RowPacket nextRowPacket() throws SQLException {
         synchronized (_lock) {
             // If the reader thread is still running we must wait
             // for the lock to be released by the reader
@@ -81,7 +80,7 @@ public class ResultSetHolder {
             }
 
             // Remember current row packet as the result
-            SerializableTransport result = _currentSerializedRowPacket;
+            RowPacket result = _currentSerializedRowPacket;
             // Start next reader thread
             readNextRowPacket();
             // Return the result
@@ -104,8 +103,7 @@ public class ResultSetHolder {
                                     RowPacket rowPacket = new RowPacket(_connectionConfiguration.getRowPacketSize(), false);
                                     // Populate the new RowPacket using the ResultSet
                                     _lastPartReached = rowPacket.populate(_resultSet);
-                                    _currentSerializedRowPacket = new SerializableTransport(rowPacket, _connectionConfiguration.getCompressionModeAsInt(),
-                                            _connectionConfiguration.getCompressionThreshold());
+                                    _currentSerializedRowPacket = rowPacket;
                                 }
                             } catch (SQLException e) {
                                 // Just remember the exception, it will be thrown at

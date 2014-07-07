@@ -4,9 +4,6 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerialNClob;
-import de.simplicit.vjdbc.serial.SerializableTransport;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -18,6 +15,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.serial.SerialNClob;
 
 public class CallableStatementGetNClobCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 8230491873823084213L;
@@ -54,7 +53,7 @@ public class CallableStatementGetNClobCommand implements Command, KryoSerializab
         } else {
             result = cstmt.getNClob(_index);
         }
-        return new SerializableTransport(new SerialNClob(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+        return new SerialNClob(result);
     }
 
     public String toString() {

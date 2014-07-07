@@ -4,14 +4,22 @@
 
 package de.simplicit.vjdbc;
 
-import de.simplicit.vjdbc.command.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.RowIdLifetime;
+import java.sql.SQLException;
+
+import de.simplicit.vjdbc.command.Command;
+import de.simplicit.vjdbc.command.CommandPool;
+import de.simplicit.vjdbc.command.DatabaseMetaDataGetUserNameCommand;
+import de.simplicit.vjdbc.command.DecoratedCommandSink;
+import de.simplicit.vjdbc.command.JdbcInterfaceType;
+import de.simplicit.vjdbc.command.ParameterTypeCombinations;
 import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
-import de.simplicit.vjdbc.serial.SerializableTransport;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
-
-import java.sql.*;
 
 public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMetaData {
     private Connection _connection;
@@ -889,8 +897,7 @@ public class VirtualDatabaseMetaData extends VirtualBase implements DatabaseMeta
 
     protected ResultSet queryResultSet(Command cmd) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport) _sink.process(_objectUid, cmd, true);
-            StreamingResultSet rs = (StreamingResultSet) st.getTransportee();
+            StreamingResultSet rs = (StreamingResultSet) _sink.process(_objectUid, cmd, true);
             rs.setCommandSink(_sink);
             return rs;
         } catch (Exception e) {

@@ -148,8 +148,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         } else {
             if(!_lastPartReached) {
                 try {
-                    SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
-                    RowPacket rsp = (RowPacket)st.getTransportee();
+                    RowPacket rsp = (RowPacket)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
 
                     if(rsp.isLastPart()) {
                         _lastPartReached = true;
@@ -786,16 +785,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public ResultSetMetaData getMetaData() throws SQLException {
         if(_metaData == null) {
-            SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, new ResultSetGetMetaDataCommand());
-            if(st != null) {
-                try {
-                    _metaData = (SerialResultSetMetaData)st.getTransportee();
-                } catch(Exception e) {
-                    throw new SQLException("Can't get ResultSetMetaData, reason: " + e.toString());
-                }
-            } else {
-                throw new SQLException("Can't get ResultSetMetaData");
-            }
+        	_metaData = (SerialResultSetMetaData)_commandSink.process(_remainingResultSet, new ResultSetGetMetaDataCommand());
         }
 
         return _metaData;
@@ -1431,8 +1421,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     private boolean requestNextRowPacket() throws SQLException {
         if(!_lastPartReached) {
             try {
-                SerializableTransport st = (SerializableTransport)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
-                RowPacket rsp = (RowPacket)st.getTransportee();
+                RowPacket rsp = (RowPacket)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
                 if(rsp.isLastPart()) {
                     _lastPartReached = true;
                 }

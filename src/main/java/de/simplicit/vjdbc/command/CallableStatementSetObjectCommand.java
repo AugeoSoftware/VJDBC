@@ -4,9 +4,6 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerializableTransport;
-import de.simplicit.vjdbc.util.SQLExceptionHelper;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -27,7 +24,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
     private int _argsCount;
     private int _targetSqlType;
     private int _scale;
-    private SerializableTransport _transport;
+    private Object _object;
 
     // default constructor for serialization
     public CallableStatementSetObjectCommand() {
@@ -48,7 +45,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
     public CallableStatementSetObjectCommand(String paramName, int targetSqlType) {
         _paramName = paramName;
         _targetSqlType = targetSqlType;
-        _transport = null;
+        _object = null;
         _argsCount = 2;
     }
     
@@ -56,7 +53,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
         _paramName = paramName;
         _targetSqlType = targetSqlType;
         _scale = scale;
-        _transport = null;
+        _object = null;
         _argsCount = 3;
     }
 
@@ -64,7 +61,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
 //        out.writeInt(_index);
     	out.writeInt(_argsCount);
         out.writeObject(_paramName);
-        out.writeObject(_transport);
+        out.writeObject(_object);
         if (_argsCount>1){
         	out.writeInt(_targetSqlType);
         	if (_argsCount>2){
@@ -76,7 +73,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         _argsCount = in.readInt();
         _paramName = (String)in.readObject();
-        _transport = (SerializableTransport)in.readObject();
+        _object = in.readObject();
         if (_argsCount>1){
         	_targetSqlType = in.readInt();
         	if (_argsCount>2){
@@ -87,7 +84,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
 
     public void setObject(Object obj) throws SQLException {
         if(obj instanceof Serializable) {
-            _transport = new SerializableTransport(obj);
+            _object = obj;
         } else {
             throw new SQLException("Object of type " + obj.getClass().getName() + " is not serializable");
         }
@@ -96,22 +93,15 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
     public Object execute(Object target, ConnectionContext ctx) throws SQLException {
         CallableStatement cstmt = (CallableStatement)target;
 
-        Object obj;
-        try {
-            obj = _transport.getTransportee();
-        } catch(Exception e) {
-            throw SQLExceptionHelper.wrap(e);
-        }
-
         switch(_argsCount){
         case 1:
-        	cstmt.setObject(_paramName, obj);
+        	cstmt.setObject(_paramName, _object);
         	break;
         case 2:
-        	cstmt.setObject(_paramName, obj, _targetSqlType);
+        	cstmt.setObject(_paramName, _object, _targetSqlType);
         	break;
         case 3:
-        	cstmt.setObject(_paramName, obj, _targetSqlType, _scale);
+        	cstmt.setObject(_paramName, _object, _targetSqlType, _scale);
         }
         
 //        if(_paramName != null) {
@@ -147,7 +137,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
 	public void write(Kryo kryo, Output output) {
 		output.writeInt(_argsCount);
 		kryo.writeObjectOrNull(output, _paramName, String.class);
-		kryo.writeObjectOrNull(output, _transport, SerializableTransport.class);
+		kryo.writeClassAndObject(output, _object);
         if (_argsCount>1){
         	output.writeInt(_targetSqlType);
         	if (_argsCount>2){
@@ -160,7 +150,7 @@ public class CallableStatementSetObjectCommand implements Command,KryoSerializab
 	public void read(Kryo kryo, Input input) {
 		_argsCount = input.readInt();
 		_paramName = kryo.readObjectOrNull(input, String.class);
-		_transport = kryo.readObjectOrNull(input, SerializableTransport.class);
+		_object = kryo.readClassAndObject(input);
         if (_argsCount>1){
         	_targetSqlType = input.readInt();        	
         	if (_argsCount>2){

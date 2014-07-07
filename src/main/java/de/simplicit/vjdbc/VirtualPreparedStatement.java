@@ -40,9 +40,8 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
         try {
             reduceParam();
 
-            SerializableTransport st = (SerializableTransport) _sink.process(_objectUid,
-                    new PreparedStatementQueryCommand(_paramList, _resultSetType), true);
-            result = (StreamingResultSet) st.getTransportee();
+            result = (StreamingResultSet) _sink.process(_objectUid,
+                  new PreparedStatementQueryCommand(_paramList, _resultSetType), true);
             result.setStatement(this);
             result.setCommandSink(_sink);
         } catch (Exception e) {
@@ -186,9 +185,8 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
 
     public ResultSetMetaData getMetaData() throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport) _sink.process(_objectUid, CommandPool
+            return (SerialResultSetMetaData) _sink.process(_objectUid, CommandPool
                     .getReflectiveCommand(JdbcInterfaceType.PREPAREDSTATEMENT, "getMetaData"));
-            return (SerialResultSetMetaData) st.getTransportee();
         } catch (Exception e) {
             throw SQLExceptionHelper.wrap(e);
         }

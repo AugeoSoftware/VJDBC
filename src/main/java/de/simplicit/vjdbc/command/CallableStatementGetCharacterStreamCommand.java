@@ -4,10 +4,10 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerializableTransport;
-import de.simplicit.vjdbc.serial.StreamSerializer;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.io.Reader;
 import java.sql.CallableStatement;
 import java.sql.SQLException;
 
@@ -15,6 +15,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.serial.StreamSerializer;
 
 public class CallableStatementGetCharacterStreamCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 3594832624574651235L;
@@ -53,7 +55,7 @@ public class CallableStatementGetCharacterStreamCommand implements Command, Kryo
         }
         try {
             // read reader and return as a char[]
-            return new SerializableTransport(StreamSerializer.toCharArray(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+            return StreamSerializer.toCharArray(result);
         } catch (IOException ioe) {
             throw new SQLException(ioe);
         }

@@ -14,6 +14,7 @@ import java.io.FileNotFoundException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.zip.Deflater;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -36,6 +37,8 @@ import de.simplicit.vjdbc.server.config.ConfigurationException;
 import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
 import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
 import de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier;
+import de.simplicit.vjdbc.util.DeflatingOutput;
+import de.simplicit.vjdbc.util.InflatingInput;
 import de.simplicit.vjdbc.util.KryoFactory;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 import de.simplicit.vjdbc.util.StreamCloser;
@@ -152,11 +155,11 @@ public class KryoServletCommandSink extends HttpServlet {
             if(method != null) {
             	kryo = KryoFactory.getInstance().getKryo();
                 //ois = new ObjectInputStream(httpServletRequest.getInputStream());
-            	input = new Input(httpServletRequest.getInputStream());
+            	input = new InflatingInput(httpServletRequest.getInputStream());
                 // And initialize the output
                 OutputStream os = httpServletResponse.getOutputStream();
                 //oos = new ObjectOutputStream(os);
-                output = new Output(os);
+                output = new DeflatingOutput(os); // TODO pass compression parameters
                 Object objectToReturn = null;
 
                 try {

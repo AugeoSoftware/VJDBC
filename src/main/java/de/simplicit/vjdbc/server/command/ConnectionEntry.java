@@ -4,25 +4,6 @@
 
 package de.simplicit.vjdbc.server.command;
 
-import de.simplicit.vjdbc.ProxiedObject;
-import de.simplicit.vjdbc.VJdbcProperties;
-import de.simplicit.vjdbc.command.Command;
-import de.simplicit.vjdbc.command.ConnectionContext;
-import de.simplicit.vjdbc.command.DestroyCommand;
-import de.simplicit.vjdbc.command.JdbcInterfaceType;
-import de.simplicit.vjdbc.command.StatementCancelCommand;
-import de.simplicit.vjdbc.command.ResultSetProducerCommand;
-import de.simplicit.vjdbc.serial.CallingContext;
-import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
-import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
-import de.simplicit.vjdbc.serial.SerializableTransport;
-import de.simplicit.vjdbc.serial.StreamingResultSet;
-import de.simplicit.vjdbc.serial.UIDEx;
-import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
-import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -32,7 +13,35 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import de.simplicit.vjdbc.ProxiedObject;
+import de.simplicit.vjdbc.command.Command;
+import de.simplicit.vjdbc.command.ConnectionContext;
+import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.JdbcInterfaceType;
+import de.simplicit.vjdbc.command.ResultSetProducerCommand;
+import de.simplicit.vjdbc.command.StatementCancelCommand;
+import de.simplicit.vjdbc.serial.CallingContext;
+import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
+import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
+import de.simplicit.vjdbc.serial.StreamingResultSet;
+import de.simplicit.vjdbc.serial.UIDEx;
+import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
+import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
 
 class ConnectionEntry implements ConnectionContext {
     private static Log _logger = LogFactory.getLog(ConnectionEntry.class);
@@ -346,11 +355,11 @@ class ConnectionEntry implements ConnectionContext {
         if(_logger.isDebugEnabled()) {
             _logger.debug("Registered ResultSet with UID " + uid.getUID());
         }
-        return new SerializableTransport(srs, getCompressionMode(), getCompressionThreshold());
+        return srs;
     }
 
     private Object handleResultSetMetaData(ResultSetMetaData result) throws SQLException {
-        return new SerializableTransport(new SerialResultSetMetaData(result), getCompressionMode(), getCompressionThreshold());
+        return new SerialResultSetMetaData(result);
     }
 
     private void dumpClientInfoProperties() {

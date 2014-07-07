@@ -4,9 +4,6 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerialRef;
-import de.simplicit.vjdbc.serial.SerializableTransport;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -18,6 +15,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.serial.SerialRef;
 
 public class CallableStatementGetRefCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 6253579473434177231L;
@@ -55,7 +54,7 @@ public class CallableStatementGetRefCommand implements Command, KryoSerializable
         } else {
             result = cstmt.getRef(_index);
         }
-        return new SerializableTransport(new SerialRef(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+        return new SerialRef(result);
     }
 
     public String toString() {

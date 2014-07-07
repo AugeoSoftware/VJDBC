@@ -4,20 +4,19 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerialSQLXML;
-import de.simplicit.vjdbc.serial.SerializableTransport;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.sql.CallableStatement;
-import java.sql.SQLXML;
 import java.sql.SQLException;
+import java.sql.SQLXML;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.serial.SerialSQLXML;
 
 public class CallableStatementGetSQLXMLCommand implements Command,KryoSerializable {
     static final long serialVersionUID = 4203440656745793953L;
@@ -54,7 +53,7 @@ public class CallableStatementGetSQLXMLCommand implements Command,KryoSerializab
         } else {
             result = cstmt.getSQLXML(_index);
         }
-        return new SerializableTransport(new SerialSQLXML(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+        return new SerialSQLXML(result);
     }
 
     public String toString() {

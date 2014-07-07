@@ -20,6 +20,8 @@ import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.servlet.AbstractServletCommandSinkClient;
 import de.simplicit.vjdbc.servlet.RequestEnhancer;
 import de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier;
+import de.simplicit.vjdbc.util.DeflatingOutput;
+import de.simplicit.vjdbc.util.InflatingInput;
 import de.simplicit.vjdbc.util.KryoFactory;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 import de.simplicit.vjdbc.util.StreamCloser;
@@ -55,7 +57,7 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             }
 
             // Write the parameter objects to the ObjectOutputStream
-            output = new Output(conn.getOutputStream());
+            output = new DeflatingOutput(conn.getOutputStream());
             kryo.writeObject(output, database);
             kryo.writeObject(output, props);
             kryo.writeObject(output, clientInfo);
@@ -66,7 +68,7 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             conn.connect();
             // Read the result object from the InputStream
             
-            input = new Input(conn.getInputStream());
+            input = new InflatingInput(conn.getInputStream());
             Object result = kryo.readClassAndObject(input);
             
 //            // This might be a SQLException which must be rethrown
@@ -107,14 +109,14 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
                 _requestEnhancer.enhanceProcessRequest(new KryoRequestModifier(conn));
             }
             conn.connect();
-            output = new Output(conn.getOutputStream());
+            output = new DeflatingOutput(conn.getOutputStream());
             kryo.writeObjectOrNull(output, connuid, Long.class);
             kryo.writeObjectOrNull(output, uid, Long.class);
             kryo.writeClassAndObject(output, cmd);
             kryo.writeObjectOrNull(output, ctx, CallingContext.class);
             output.flush();
 
-            input = new Input(conn.getInputStream());
+            input = new InflatingInput(conn.getInputStream());
             Object result = kryo.readClassAndObject(input);
             if(result instanceof SQLException) {
                 throw (SQLException)result;

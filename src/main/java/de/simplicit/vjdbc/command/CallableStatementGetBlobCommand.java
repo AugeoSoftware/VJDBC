@@ -5,7 +5,6 @@
 package de.simplicit.vjdbc.command;
 
 import de.simplicit.vjdbc.serial.SerialBlob;
-import de.simplicit.vjdbc.serial.SerializableTransport;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -54,7 +53,7 @@ public class CallableStatementGetBlobCommand implements Command, KryoSerializabl
         } else {
             result = cstmt.getBlob(_index);
         }
-        return new SerializableTransport(new SerialBlob(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+        return new SerialBlob(result);
     }
 
     public String toString() {

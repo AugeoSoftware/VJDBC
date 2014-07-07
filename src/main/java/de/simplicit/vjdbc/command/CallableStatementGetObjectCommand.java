@@ -4,9 +4,6 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.SerializableTransport;
-import de.simplicit.vjdbc.VirtualCallableStatement;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -20,6 +17,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import de.simplicit.vjdbc.VirtualCallableStatement;
 
 public class CallableStatementGetObjectCommand implements Command, KryoSerializable {
     static final long serialVersionUID = 7045834396073252820L;
@@ -118,7 +117,7 @@ public class CallableStatementGetObjectCommand implements Command, KryoSerializa
 
         // Any other type must be Serializable to be transported
         if(result == null || result instanceof Serializable) {
-            return new SerializableTransport(result, ctx.getCompressionMode(), ctx.getCompressionThreshold());
+            return result;
         }
 
         throw new SQLException("Object of type " + result.getClass().getName() + " is not serializable");

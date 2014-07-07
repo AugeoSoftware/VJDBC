@@ -5,7 +5,6 @@
 package de.simplicit.vjdbc.command;
 
 import de.simplicit.vjdbc.serial.SerialArray;
-import de.simplicit.vjdbc.serial.SerializableTransport;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -55,7 +54,7 @@ public class CallableStatementGetArrayCommand implements Command, KryoSerializab
         } else {
             result = cstmt.getArray(_index);
         }
-        return new SerializableTransport(new SerialArray(result), ctx.getCompressionMode(), ctx.getCompressionThreshold());
+        return new SerialArray(result);
     }
 
     public String toString() {

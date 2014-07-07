@@ -4,15 +4,32 @@
 
 package de.simplicit.vjdbc;
 
-import de.simplicit.vjdbc.command.*;
-import de.simplicit.vjdbc.serial.SerializableTransport;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.SQLWarning;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+import de.simplicit.vjdbc.command.CommandPool;
+import de.simplicit.vjdbc.command.DecoratedCommandSink;
+import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.JdbcInterfaceType;
+import de.simplicit.vjdbc.command.ParameterTypeCombinations;
+import de.simplicit.vjdbc.command.StatementCancelCommand;
+import de.simplicit.vjdbc.command.StatementExecuteBatchCommand;
+import de.simplicit.vjdbc.command.StatementExecuteCommand;
+import de.simplicit.vjdbc.command.StatementExecuteExtendedCommand;
+import de.simplicit.vjdbc.command.StatementGetGeneratedKeysCommand;
+import de.simplicit.vjdbc.command.StatementGetResultSetCommand;
+import de.simplicit.vjdbc.command.StatementQueryCommand;
+import de.simplicit.vjdbc.command.StatementSetFetchSizeCommand;
+import de.simplicit.vjdbc.command.StatementUpdateCommand;
+import de.simplicit.vjdbc.command.StatementUpdateExtendedCommand;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
-
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class VirtualStatement extends VirtualBase implements Statement {
     protected Connection _connection;
@@ -51,9 +68,8 @@ public class VirtualStatement extends VirtualBase implements Statement {
 
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport) _sink.process(_objectUid, new StatementQueryCommand(sql,
+            StreamingResultSet srs = (StreamingResultSet) _sink.process(_objectUid, new StatementQueryCommand(sql,
                     _resultSetType), true);
-            StreamingResultSet srs = (StreamingResultSet) st.getTransportee();
             srs.setStatement(this);
             srs.setCommandSink(_sink);
             _currentResultSet = srs;
@@ -148,9 +164,8 @@ public class VirtualStatement extends VirtualBase implements Statement {
     public ResultSet getResultSet() throws SQLException {
         if (_currentResultSet == null) {
             try {
-                SerializableTransport st = (SerializableTransport) _sink.process(_objectUid,
+                _currentResultSet = (StreamingResultSet) _sink.process(_objectUid,
                         new StatementGetResultSetCommand(), true);
-                _currentResultSet = (StreamingResultSet) st.getTransportee();
                 _currentResultSet.setStatement(this);
                 _currentResultSet.setCommandSink(_sink);
             } catch (Exception e) {
@@ -229,9 +244,8 @@ public class VirtualStatement extends VirtualBase implements Statement {
 
     public ResultSet getGeneratedKeys() throws SQLException {
         try {
-            SerializableTransport st = (SerializableTransport) _sink.process(_objectUid,
+            StreamingResultSet srs = (StreamingResultSet) _sink.process(_objectUid,
                     new StatementGetGeneratedKeysCommand(), true);
-            StreamingResultSet srs = (StreamingResultSet) st.getTransportee();
             srs.setStatement(this);
             srs.setCommandSink(_sink);
             return srs;
