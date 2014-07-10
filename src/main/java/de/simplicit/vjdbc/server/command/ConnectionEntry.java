@@ -347,11 +347,12 @@ class ConnectionEntry implements ConnectionContext {
                 _connectionConfiguration.isPrefetchResultSetMetaData(),
                 _connectionConfiguration.getCharset());
         // Populate it
-        boolean lastPartReached = srs.populate(result);
+        ResultSetMetaData metaData = result.getMetaData();
+        boolean lastPartReached = srs.populate(result, metaData);
         // Remember the ResultSet and put the UID in the StreamingResultSet
         UIDEx uid = new UIDEx();
         srs.setRemainingResultSetUID(uid);
-        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, _connectionConfiguration, lastPartReached), ctx, JdbcInterfaceType.RESULTSETHOLDER));
+        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, metaData, _connectionConfiguration, lastPartReached), ctx, JdbcInterfaceType.RESULTSETHOLDER));
         if(_logger.isDebugEnabled()) {
             _logger.debug("Registered ResultSet with UID " + uid.getUID());
         }

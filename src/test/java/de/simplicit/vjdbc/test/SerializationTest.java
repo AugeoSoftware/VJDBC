@@ -15,7 +15,7 @@ public class SerializationTest {
         Statement stmt = conn.createStatement();
         ResultSet rs = stmt.executeQuery("select * from Address");
         StreamingResultSet srs = new StreamingResultSet(1000, true, false, "UTF-8");
-        srs.populate(rs);
+        srs.populate(rs, rs.getMetaData());
         byte[] serSRS = serializeObject(srs);
         System.out.println("Size SRS: " + serSRS.length);
         conn.close();

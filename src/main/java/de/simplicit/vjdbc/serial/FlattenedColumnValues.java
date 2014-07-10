@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Array;
-
+@Deprecated
 public class FlattenedColumnValues implements Externalizable {
     private static final long serialVersionUID = 3691039872299578672L;
     

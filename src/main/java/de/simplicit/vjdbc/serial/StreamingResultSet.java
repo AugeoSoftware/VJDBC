@@ -21,7 +21,9 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Map;
 
 public class StreamingResultSet implements ResultSet, Externalizable,KryoSerializable {
@@ -29,10 +31,11 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     private static Log _logger = LogFactory.getLog(StreamingResultSet.class);
 
-    private int[] _columnTypes;
     private String[] _columnNames;
     private String[] _columnLabels;
-    private RowPacket _rows;
+
+    private transient List<RowPacket> _pages = null;
+
     private int _rowPacketSize;
     private boolean _forwardOnly;
     private String _charset;
@@ -41,9 +44,15 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     private SerialResultSetMetaData _metaData = null;
 
     private transient DecoratedCommandSink _commandSink = null;
+    /** index inside current page in _columnValues */
     private transient int _cursor = -1;
-    private transient int _lastReadColumn = 0;
-    private transient Object[] _actualRow;
+
+    /** current page (aka {@link RowPacket})
+     * _page.getIndex()*_rowPacketSize +_cursor = current row number */
+    private transient RowPacket _page = null;
+    private transient int _lastReadColumn = -1;
+    /** column values of current page */
+    private transient ColumnValues[] _columnValues;
     private transient int _fetchDirection;
     private transient boolean _prefetchMetaData;
     private transient Statement _statement;
@@ -59,10 +68,9 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeObject(_columnTypes);
         out.writeObject(_columnNames);
         out.writeObject(_columnLabels);
-        out.writeObject(_rows);
+        out.writeObject(_page);
         out.writeInt(_rowPacketSize);
         out.writeBoolean(_forwardOnly);
         out.writeUTF(_charset);
@@ -72,10 +80,9 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        _columnTypes = (int[])in.readObject();
         _columnNames = (String[])in.readObject();
         _columnLabels = (String[])in.readObject();
-        _rows = (RowPacket)in.readObject();
+        _page = (RowPacket)in.readObject();
         _rowPacketSize = in.readInt();
         _forwardOnly = in.readBoolean();
         _charset = in.readUTF();
@@ -83,7 +90,12 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         _remainingResultSet = (UIDEx)in.readObject();
         _metaData = (SerialResultSetMetaData)in.readObject();
 
-        _cursor = -1;
+        // initialization
+        _columnValues = _page.getFlattenedColumnsValues();
+        if (!_forwardOnly){
+        	_pages = new ArrayList<RowPacket>();
+        	_pages.add(_page);
+        }
     }
 
     public StreamingResultSet(int rowPacketSize, boolean forwardOnly, boolean prefetchMetaData, String charset) {
@@ -105,8 +117,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         _remainingResultSet = reg;
     }
 
-    public boolean populate(ResultSet rs) throws SQLException {
-        ResultSetMetaData metaData = rs.getMetaData();
+    public boolean populate(ResultSet rs, ResultSetMetaData metaData) throws SQLException {
 
         // Fetch the meta data immediately if required. Succeeding getMetaData() calls
         // on the ResultSet won't require an additional remote call
@@ -114,62 +125,54 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
             _logger.debug("Fetching MetaData of ResultSet");
             _metaData = new SerialResultSetMetaData(metaData);
             // use already retrieved arrays
-            _columnTypes = _metaData.getColumnTypes();
             _columnNames = _metaData.getColumnNames();
             _columnLabels = _metaData.getColumnLabels();
         } else {
 	        int columnCount = metaData.getColumnCount();
-	        _columnTypes = new int[columnCount];
 	        _columnNames = new String[columnCount];
 	        _columnLabels = new String[columnCount];
 	
 	        for(int i = 1; i <= columnCount; i++) {
-	            _columnTypes[i-1] = metaData.getColumnType(i);
-	            _columnNames[i-1] = metaData.getColumnName(i).toLowerCase();
-	            _columnLabels[i-1] = metaData.getColumnLabel(i).toLowerCase();
+	            _columnNames[i-1] = metaData.getColumnName(i);
+	            _columnLabels[i-1] = metaData.getColumnLabel(i);
 	        }
         }
         // Create first ResultSet-Part
-        _rows = new RowPacket(_rowPacketSize, _forwardOnly);
-        // Populate it
-        _rows.populate(rs);
+         _page = new RowPacket(_rowPacketSize /*, _forwardOnly */, 0);
+        // Populate it         
+         _page.populate(rs, metaData);
 
-        _lastPartReached = _rows.isLastPart();
+        _lastPartReached = _page.isLastPart();
 
         return _lastPartReached;
     }
 
     public boolean next() throws SQLException {
-        boolean result = false;
-
-        if(++_cursor < _rows.size()) {
-            _actualRow = _rows.get(_cursor);
-            result = true;
-        } else {
-            if(!_lastPartReached) {
-                try {
-                    RowPacket rsp = (RowPacket)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
-
-                    if(rsp.isLastPart()) {
-                        _lastPartReached = true;
-                    }
-
-                    if(rsp.size() > 0) {
-                        _rows.merge(rsp);
-                        _actualRow = _rows.get(_cursor);
-                        result = true;
-                    }
-                } catch(Exception e) {
-                    throw SQLExceptionHelper.wrap(e);
-                }
-            }
+//  TODO      if (_page==null){
+//        	throw new SQLException("ResultSet is closed");
+//        }
+    	_cursor++;
+        if (_cursor < _page.getRowCount()){
+        	// we are still within the same page
+        	_lastReadColumn = -1;
+        	return true;
         }
-
-        return result;
+        int pageIndex = _page.getIndex()+1;
+        if (_pages!=null && pageIndex <_pages.size()){
+        	_page = _pages.get(pageIndex);
+        	_columnValues = _page.getFlattenedColumnsValues();
+        	_lastReadColumn = -1;
+        	_cursor = 0;
+        } else  if (requestNextRowPacket()) {
+        	_cursor = 0;
+        }
+        return _cursor < _page.getRowCount();
     }
 
     public void close() throws SQLException {
         _cursor = -1;
+        _page = null;
+        _lastReadColumn = -1;
         if(_remainingResultSet != null) {
             // The server-side created StreamingResultSet is garbage-collected after it was send over the wire. Thus
             // we have to check here if it is such a server object because in this case we don't have to try the remote
@@ -185,489 +188,87 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     public boolean wasNull() throws SQLException {
-        return _actualRow[_lastReadColumn] == null;
+        return (_lastReadColumn>=0) && _columnValues[_lastReadColumn].isNull(_cursor);
     }
 
     public String getString(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return _actualRow[columnIndex].toString();
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getString(_cursor);
     }
 
     public boolean getBoolean(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue();
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).byteValue() != 0;
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).shortValue() != 0;
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).intValue() != 0;
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).longValue() != 0;
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).floatValue() != 0.0f;
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).doubleValue() != 0.0f;
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).intValue() != 0;
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Integer.parseInt((String)value) != 0;
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to boolean, must be an integer");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue();
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to boolean: " + value.getClass());
-        }
-
-        return false;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getBoolean(_cursor);
     }
 
     public byte getByte(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? (byte)1 : (byte)0;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).byteValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).byteValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).byteValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).byteValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).byteValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).byteValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).byteValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Byte.parseByte((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to byte");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? (byte)1 : (byte)0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to byte: " + value.getClass());
-        }
-
-        return 0;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getByte(_cursor);
     }
 
     public short getShort(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? (short)1 : (short)0;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).shortValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).shortValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).shortValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).shortValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).shortValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).shortValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).shortValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Short.parseShort((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to short");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? (short)1 : (short)0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to short: " + value.getClass());
-        }
-
-        return 0;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getShort(_cursor);
     }
 
     public int getInt(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? (int)1 : (int)0;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).intValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).intValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).intValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).intValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).intValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).intValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).intValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Integer.parseInt((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to integer");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? 1 : 0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to integer: " + value.getClass());
-        }
-
-        return 0;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getInt(_cursor);
     }
 
     public long getLong(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? 1 : 0;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).longValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).longValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).longValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).longValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).longValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).longValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).longValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Long.parseLong((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to long");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? 1 : 0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to long: " + value.getClass());
-        }
-
-        return 0;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getLong(_cursor);
     }
 
     public float getFloat(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? 1.0f : 0.0f;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).floatValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).floatValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).floatValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).floatValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).floatValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).floatValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).floatValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Float.parseFloat((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to float");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? 1 : 0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to float: " + value.getClass());
-        }
-
-        return 0.0f;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getFloat(_cursor);
     }
 
     public double getDouble(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object value = _actualRow[columnIndex];
-
-            switch(_columnTypes[columnIndex]) {
-                case Types.BIT:
-                    // Boolean
-                    return ((Boolean)value).booleanValue() ? 1.0 : 0.0;
-                case Types.TINYINT:
-                    // Byte
-                    return ((Byte)value).doubleValue();
-                case Types.SMALLINT:
-                    // Short
-                    return ((Short)value).doubleValue();
-                case Types.INTEGER:
-                    // Integer
-                    return ((Integer)value).doubleValue();
-                case Types.BIGINT:
-                    // Long
-                    return ((Long)value).doubleValue();
-                case Types.REAL:
-                    // Float
-                    return ((Float)value).doubleValue();
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    return ((Double)value).doubleValue();
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    return ((BigDecimal)value).doubleValue();
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        return Double.parseDouble((String)value);
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to double");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(_columnTypes[columnIndex] == Types.BOOLEAN) {
-                            // Boolean
-                            return ((Boolean)value).booleanValue() ? 1 : 0;
-                        }
-                    }
-                    break;
-            }
-
-            throw new SQLException("Can't convert type to double: " + value.getClass());
-        }
-
-        return 0.0;
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getDouble(_cursor);        
     }
 
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return internalGetBigDecimal(_actualRow[columnIndex], _columnTypes[columnIndex], scale);
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        BigDecimal result = _columnValues[columnIndex].getBigDecimal(_cursor);
+        result.setScale(scale);
+		return result;
     }
 
     public byte[] getBytes(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (byte[])_actualRow[columnIndex];
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (byte[]) _columnValues[columnIndex].getObject(_cursor);         
     }
 
     public Date getDate(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            switch(_columnTypes[columnIndex]) {
-                case Types.DATE:
-                    return (Date)_actualRow[columnIndex];
-                case Types.TIME:
-                    return getCleanDate((((Time)_actualRow[columnIndex]).getTime()));
-                case Types.TIMESTAMP:
-                    return getCleanDate(((Timestamp)_actualRow[columnIndex]).getTime());
-            }
-
-            throw new SQLException("Can't convert type to Date: " + _actualRow[columnIndex].getClass());
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+         return _columnValues[columnIndex].getDate(_cursor); 
     }
 
     public Time getTime(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            switch(_columnTypes[columnIndex]) {
-                case Types.TIME:
-                    return (Time)_actualRow[columnIndex];
-                case Types.DATE:
-                    Date date = ((Date)_actualRow[columnIndex]);
-                    return getCleanTime(date.getTime());
-                case Types.TIMESTAMP:
-                    Timestamp timestamp = ((Timestamp)_actualRow[columnIndex]);
-                    return getCleanTime(timestamp.getTime());
-            }
-
-            throw new SQLException("Can't convert type to Time: " + _actualRow[columnIndex].getClass());
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getTime(_cursor); 
     }
 
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            switch(_columnTypes[columnIndex]) {
-                case Types.TIME:
-                    return new Timestamp(((Time)_actualRow[columnIndex]).getTime());
-                case Types.DATE:
-                    return new Timestamp(((Date)_actualRow[columnIndex]).getTime());
-                case Types.TIMESTAMP:
-                    return ((Timestamp)_actualRow[columnIndex]);
-            }
-
-            throw new SQLException("Can't convert type to Timestamp: " + _actualRow[columnIndex].getClass());
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getTimestamp(_cursor);         
     }
 
     public InputStream getAsciiStream(int columnIndex) throws SQLException {
@@ -678,31 +279,33 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         throw new UnsupportedOperationException("getUnicodeStream");
     }
 
-    public InputStream getBinaryStream(int columnIndex) throws SQLException {
-        columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Object obj = _actualRow[columnIndex];
+	public InputStream getBinaryStream(int columnIndex) throws SQLException {
+		columnIndex--;
+		_lastReadColumn = columnIndex;
 
-            byte[] bytes;
+		Object obj = _columnValues[columnIndex].getObject(_cursor);
+		if (obj == null) {
+			return null;
+		}
 
-            if(obj instanceof byte[]) {
-                bytes = (byte[])obj;
-            } else if(obj instanceof String) {
-                try {
-                    bytes = ((String)obj).getBytes(_charset);
-                } catch(UnsupportedEncodingException e) {
-                    throw SQLExceptionHelper.wrap(e);
-                }
-            } else {
-                String msg = "StreamingResultSet.getBinaryStream(): Can't convert object of type '" + obj.getClass() + "' to InputStream";
-                throw new SQLException(msg);
-            }
+		byte[] bytes;
 
-            return new ByteArrayInputStream(bytes);
-        } else {
-            return null;
-        }
-    }
+		if (obj instanceof byte[]) {
+			bytes = (byte[]) obj;
+		} else if (obj instanceof String) {
+			try {
+				bytes = ((String) obj).getBytes(_charset);
+			} catch (UnsupportedEncodingException e) {
+				throw SQLExceptionHelper.wrap(e);
+			}
+		} else {
+			String msg = "StreamingResultSet.getBinaryStream(): Can't convert object of type '" + obj.getClass()
+					+ "' to InputStream";
+			throw new SQLException(msg);
+		}
+
+		return new ByteArrayInputStream(bytes);
+	}
 
     public String getString(String columnName) throws SQLException {
         return getString(getIndexForName(columnName));
@@ -793,12 +396,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public Object getObject(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return _actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getObject(_cursor);
     }
 
     public Object getObject(String columnName) throws SQLException {
@@ -811,12 +410,12 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public Reader getCharacterStream(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return new StringReader((String)_actualRow[columnIndex]);
+        _lastReadColumn = columnIndex;
+        Object value = _columnValues[columnIndex].getObject(_cursor);
+        if (value==null){
+        	return null;
         }
-        else {
-            return null;
-        }
+		return new StringReader((String)value);
     }
 
     public Reader getCharacterStream(String columnName) throws SQLException {
@@ -825,88 +424,12 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return internalGetBigDecimal(_actualRow[columnIndex], _columnTypes[columnIndex], -1);
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getBigDecimal(_cursor);
     }
 
     public BigDecimal getBigDecimal(String columnName) throws SQLException {
         return getBigDecimal(getIndexForName(columnName));
-    }
-
-    private BigDecimal internalGetBigDecimal(Object value, int columnType, int scale) throws SQLException {
-        BigDecimal result = null;
-
-        if(value != null) {
-            switch(columnType) {
-                case Types.BIT:
-                    // Boolean
-                    result = new BigDecimal(((Boolean)value).booleanValue() ? 1.0 : 0.0);
-                    break;
-                case Types.TINYINT:
-                    // Byte
-                    result = new BigDecimal(((Byte)value).doubleValue());
-                    break;
-                case Types.SMALLINT:
-                    // Short
-                    result = new BigDecimal(((Short)value).doubleValue());
-                    break;
-                case Types.INTEGER:
-                    // Integer
-                    result = new BigDecimal(((Integer)value).doubleValue());
-                    break;
-                case Types.BIGINT:
-                    // Long
-                    result = new BigDecimal(((Long)value).doubleValue());
-                    break;
-                case Types.REAL:
-                    // Float
-                    result = new BigDecimal(((Float)value).doubleValue());
-                    break;
-                case Types.FLOAT:
-                case Types.DOUBLE:
-                    // Double
-                    result = new BigDecimal(((Double)value).doubleValue());
-                    break;
-                case Types.NUMERIC:
-                case Types.DECIMAL:
-                    // BigDecimal
-                    result = (BigDecimal)value;
-                    break;
-                case Types.CHAR:
-                case Types.VARCHAR:
-                case Types.LONGVARCHAR:
-                    // String
-                    try {
-                        result = new BigDecimal(Double.parseDouble((String)value));
-                    } catch (NumberFormatException e) {
-                        throw new SQLException("Can't convert String value '" + value + "' to double");
-                    }
-                default:
-                    if(JavaVersionInfo.use14Api) {
-                        if(columnType == Types.BOOLEAN) {
-                            // Boolean
-                            result = new BigDecimal(((Boolean)value).booleanValue() ? 1.0 : 0.0);
-                        }
-                    }
-                    break;
-            }
-
-            // Set scale if necessary
-            if(result != null) {
-                if(scale >= 0) {
-                    result = result.setScale(scale);
-                }
-            }
-            else {
-                throw new SQLException("Can't convert type to BigDecimal: " + value.getClass());
-            }
-        }
-
-        return result;
     }
 
     public boolean isBeforeFirst() throws SQLException {
@@ -914,53 +437,60 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     public boolean isAfterLast() throws SQLException {
-        return _rows.isLastPart() && (_cursor == _rows.size());
+        if (_page==null) { 
+        	throw new SQLException("ResultSet is closed");
+        }
+
+        return _lastPartReached && (_forwardOnly || _page.getIndex()==_pages.size()-1) && (_cursor>=_page.getRowCount());
     }
 
     public boolean isFirst() throws SQLException {
-        return _cursor == 0;
+        return _cursor == 0 && _page.getIndex()==0;
     }
 
     public boolean isLast() throws SQLException {
-        return _rows.isLastPart() && (_cursor == (_rows.size() - 1));
+        return _lastPartReached && (_forwardOnly || _page.getIndex()==_pages.size()-1) && (_cursor==_page.getRowCount()-1);
     }
 
     public void beforeFirst() throws SQLException {
-        _cursor = -1;
-        _actualRow = null;
+    	if (_forwardOnly){
+    		throw new SQLException("beforeFirst() is not possible on Forward-Only-ResultSet");
+    	}
+    	_cursor = -1;
+        _page = _pages.get(0);// first packet is always present 
+        _columnValues = _page.getFlattenedColumnsValues();
+        _lastReadColumn = -1;
     }
 
     public void afterLast() throws SQLException {
         // Request all remaining Row-Packets
         while(requestNextRowPacket()) ;
-        _cursor = _rows.size();
-        _actualRow = null;
+
+        _cursor = _page.getRowCount();
     }
 
     public boolean first() throws SQLException {
-        try {
-            _cursor = 0;
-            _actualRow = _rows.get(_cursor);
-            return true;
-        } catch (SQLException e) {
-            return false;
-        }
+		if (_forwardOnly) {
+			throw new SQLException("previous() is not possible on Forward-Only-ResultSet");
+		}
+
+		_page = _pages.get(0);
+		_columnValues = _page.getFlattenedColumnsValues();
+		_lastReadColumn = -1;
+		_cursor = 0;
+		return _cursor < _page.getRowCount();
     }
 
     public boolean last() throws SQLException {
-        try {
-            // Request all remaining Row-Packets
-            while(requestNextRowPacket()) ;
-            _cursor = _rows.size() - 1;
-            _actualRow = _rows.get(_cursor);
-            return true;
-        } catch (SQLException e) {
-            return false;
-        }
+        // Request all remaining Row-Packets
+        while(requestNextRowPacket()) ;
+
+        _cursor = _page.getRowCount() - 1;
+        return _cursor>=0;
     }
 
     public int getRow() throws SQLException {
-        return _cursor + 1;
+        return _page.getIndex() * _rowPacketSize + _cursor + 1;
     }
 
     public boolean absolute(int row) throws SQLException {
@@ -968,20 +498,22 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     }
 
     public boolean relative(int step) throws SQLException {
-        return setCursor(_cursor + step);
+        return setCursor(_page.getIndex() * _rowPacketSize + _cursor + step);
     }
 
     public boolean previous() throws SQLException {
         if(_forwardOnly) {
             throw new SQLException("previous() not possible on Forward-Only-ResultSet");
-        } else {
-            if(_cursor > 0) {
-                _actualRow = _rows.get(--_cursor);
-                return true;
-            } else {
-                return false;
-            }
         }
+    	_cursor--;
+    	if (_cursor<0 && _page.getIndex()>0){
+    		// switch to previous page 
+    		_page = _pages.get(_page.getIndex()-1);
+    		_columnValues = _page.getFlattenedColumnsValues();
+    		_lastReadColumn = -1;
+    		_cursor = _page.getRowCount() - 1;
+    	}
+    	return _cursor>=0;
     }
 
     public void setFetchDirection(int direction) throws SQLException {
@@ -1225,42 +757,26 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public Ref getRef(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (Ref)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (Ref) _columnValues[columnIndex].getObject(_cursor);
     }
 
     public Blob getBlob(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (Blob)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (Blob) _columnValues[columnIndex].getObject(_cursor);
     }
 
     public Clob getClob(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (Clob)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (Clob) _columnValues[columnIndex].getObject(_cursor);        
     }
 
     public Array getArray(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (Array)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (Array) _columnValues[columnIndex].getObject(_cursor);        
     }
 
     public Object getObject(String colName, Map map) throws SQLException {
@@ -1293,30 +809,27 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public Date getDate(int columnIndex, Calendar cal) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            cal.setTime(getDate(columnIndex));
+        Date date = getDate(columnIndex);
+        if (date!=null){
+        	cal.setTime(date);
             return (Date)cal.getTime();
         }
-        else {
-            return null;
-        }
+        return null;
     }
 
     public Date getDate(String columnName, Calendar cal) throws SQLException {
         return getDate(getIndexForName(columnName), cal);
     }
 
-    public Time getTime(int columnIndex, Calendar cal) throws SQLException {
-        columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            Time time = (Time)_actualRow[columnIndex];
-            cal.setTime(time);
-            return (Time)cal.getTime();
-        }
-        else {
-            return null;
-        }
-    }
+	public Time getTime(int columnIndex, Calendar cal) throws SQLException {
+		columnIndex--;
+		Time time = (Time) getTime(columnIndex);
+		if (time != null) {
+			cal.setTime(time);
+			return (Time) cal.getTime();
+		}
+		return null;
+	}
 
     public Time getTime(String columnName, Calendar cal) throws SQLException {
         return getTime(getIndexForName(columnName), cal);
@@ -1339,12 +852,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public URL getURL(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (URL)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (URL)_columnValues[columnIndex].getObject(_cursor);
     }
 
     public URL getURL(String columnName) throws SQLException {
@@ -1385,10 +894,9 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     private int getIndexForName(String name) throws SQLException {
         int result = -1;
-        String nameLowercase = name.toLowerCase();
         // first search in the columns names (hit is very likely)
         for(int i = 0; i < _columnNames.length; ++i) {
-            if(_columnNames[i].equals(nameLowercase)) {
+            if(_columnNames[i].equalsIgnoreCase(name)) {
                 result = i;
                 break;
             }
@@ -1396,7 +904,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         // not found ? then search in the labels
         if(result < 0) {
                 for(int i = 0; i < _columnLabels.length; ++i) {
-                    if(_columnLabels[i].equals(nameLowercase)) {
+                    if(_columnLabels[i].equalsIgnoreCase(name)) {
                         result = i;
                         break;
                     }
@@ -1412,54 +920,57 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
         return result + 1;
     }
 
-    private boolean preGetCheckNull(int index) {
-        _lastReadColumn = index;
-        boolean wasNull = _actualRow[_lastReadColumn] == null;
-        return !wasNull;
+    /**
+     * retrieve next page and make it current
+     * if retrieved page contains zero rows, 
+     * current page is not changed
+     * does not change the cursor
+     * @return
+     * @throws SQLException
+     */
+    private final boolean requestNextRowPacket() throws SQLException {
+		if (!_lastPartReached) {
+			RowPacket rsp = (RowPacket) _commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
+			if (rsp.isLastPart()) {
+				_lastPartReached = true;
+			}
+			if (rsp.getRowCount()>0){
+				if (!_forwardOnly) {
+					_pages.add(rsp);
+				}
+				_page = rsp;
+				_columnValues = rsp.getFlattenedColumnsValues();
+				_lastReadColumn = -1;
+				return true;
+			}
+		}
+		return false;
     }
 
-    private boolean requestNextRowPacket() throws SQLException {
-        if(!_lastPartReached) {
-            try {
-                RowPacket rsp = (RowPacket)_commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
-                if(rsp.isLastPart()) {
-                    _lastPartReached = true;
-                }
-                if(rsp.size() > 0) {
-                    _rows.merge(rsp);
-                    return true;
-                } else {
-                    return false;
-                }
-            } catch(Exception e) {
-                throw SQLExceptionHelper.wrap(e);
-            }
-        } else {
-            return false;
+    private final boolean setCursor(int row) throws SQLException {
+        if (row<0){
+        	return false;
         }
-    }
-
-    private boolean setCursor(int row) throws SQLException {
-        if(row >= 0) {
-            if(row < _rows.size()) {
-                _cursor = row;
-                _actualRow = _rows.get(_cursor);
-                return true;
-            } else {
-                // If new row is not in the range of the actually available
-                // rows then try to load the next row packets successively
-                while(requestNextRowPacket()) {
-                    if(row < _rows.size()) {
-                        _cursor = row;
-                        _actualRow = _rows.get(_cursor);
-                        return true;
-                    }
-                }
-                return false;
-            }
-        } else {
-            return false;
-        }
+    	int pageIndex = row / _rowPacketSize;
+    	if (_forwardOnly && pageIndex < _page.getIndex()){
+    		throw new SQLException("Moving backward is not possible on Forward-Only-ResultSet");
+    	}
+    	if (_pages!=null && pageIndex<_pages.size()){
+    		_page = _pages.get(pageIndex);
+    		_columnValues = _page.getFlattenedColumnsValues();
+    		_cursor = row - (pageIndex * _rowPacketSize);
+    		_lastReadColumn = -1;
+    		return true;
+    	} else {
+    		while(requestNextRowPacket() && _page.getIndex()!=pageIndex);
+    		if (pageIndex==_page.getIndex()){
+    			_cursor = row - (pageIndex * _rowPacketSize);
+    			return true;
+    		} else {
+    			_cursor = _page.getRowCount();
+    		}
+    	}
+    	return false;
     }
 
     private Date getCleanDate(long millis) {
@@ -1485,11 +996,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     /* start JDBC4 support */
     public RowId getRowId(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (RowId) _actualRow[columnIndex];
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (RowId) _columnValues[columnIndex].getObject(_cursor);
     }
 
     public RowId getRowId(String columnName) throws SQLException {
@@ -1534,12 +1042,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public NClob getNClob(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (NClob)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (NClob) _columnValues[columnIndex].getObject(_cursor);        
     }
 
     public NClob getNClob(String columnLabel) throws SQLException {
@@ -1548,12 +1052,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public SQLXML getSQLXML(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return (SQLXML)_actualRow[columnIndex];
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return (SQLXML) _columnValues[columnIndex].getObject(_cursor);          
     }
 
     public SQLXML getSQLXML(String columnLabel) throws SQLException {
@@ -1570,11 +1070,8 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public String getNString(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return _actualRow[columnIndex].toString();
-        } else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        return _columnValues[columnIndex].getString(_cursor);        
     }
 
     public String getNString(String columnLabel) throws SQLException {
@@ -1583,12 +1080,12 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
         columnIndex--;
-        if(preGetCheckNull(columnIndex)) {
-            return new StringReader((String)_actualRow[columnIndex]);
-        }
-        else {
-            return null;
-        }
+        _lastReadColumn = columnIndex;
+        String s = _columnValues[columnIndex].getString(_cursor);
+		if (s!=null){
+			return new StringReader(s);
+		}
+        return null;
     }
 
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
@@ -1720,16 +1217,14 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 		kryo.writeObjectOrNull(output, _metaData, SerialResultSetMetaData.class);		
 		if (_metaData==null){
 			// write partial metadata only if full metadata is absent
-	    	kryo.writeObjectOrNull(output, _columnTypes, int[].class);
 	    	kryo.writeObjectOrNull(output, _columnNames, String[].class);
 	    	kryo.writeObjectOrNull(output, _columnLabels, String[].class);
 	    }
 	    
-	    kryo.writeObjectOrNull(output, _rows, RowPacket.class);
+	    kryo.writeObjectOrNull(output, _page, RowPacket.class);
 	    output.writeInt(_rowPacketSize);
 	    output.writeBoolean(_forwardOnly);
 	    kryo.writeObjectOrNull(output, _charset, String.class);
-	    output.writeBoolean(_lastPartReached);
 	    kryo.writeObjectOrNull(output, _remainingResultSet, UIDEx.class);
 	}
 
@@ -1737,22 +1232,27 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 	public void read(Kryo kryo, Input input) {
 		_metaData = kryo.readObjectOrNull(input, SerialResultSetMetaData.class);		
 		if (_metaData==null){
-	    	_columnTypes = kryo.readObjectOrNull(input, int[].class);
 	    	_columnNames = kryo.readObjectOrNull(input, String[].class);
 	    	_columnLabels = kryo.readObjectOrNull(input, String[].class);
 	    } else {
-	    	_columnTypes = _metaData.getColumnTypes();
 	    	_columnNames = _metaData.getColumnNames();
 	    	_columnLabels = _metaData.getColumnLabels();
 	    }
 	    
-	    _rows = kryo.readObjectOrNull(input, RowPacket.class);
+		_page = kryo.readObjectOrNull(input, RowPacket.class);
+	    _lastPartReached = _page.isLastPart();
 	    
 	    _rowPacketSize = input.readInt();
 	    _forwardOnly = input.readBoolean();
 	    _charset = kryo.readObjectOrNull(input, String.class);
 	    
-	    _lastPartReached = input.readBoolean();
-	    _remainingResultSet = kryo.readObjectOrNull(input, UIDEx.class);		
+	    _remainingResultSet = kryo.readObjectOrNull(input, UIDEx.class);
+	    
+	    // initialization
+	    if (!_forwardOnly){
+	    	_pages = new ArrayList<RowPacket>();
+	    	_pages.add(_page);
+	    }
+        _columnValues = _page.getFlattenedColumnsValues();
 	}
 }

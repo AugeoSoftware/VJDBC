@@ -24,15 +24,18 @@ public class ResultSetHolder {
 
     private final Object _lock = new Object();
     private boolean _readerThreadIsRunning = false;
+    private volatile int packetIndex = 1; // first packe is already sent with StreamingResultSet 
 
-    private ResultSet _resultSet;
+    private final ResultSet _resultSet;
+    private final ResultSetMetaData _metaData;
     private RowPacket _currentSerializedRowPacket;
-    private ConnectionConfiguration _connectionConfiguration;
+    private final ConnectionConfiguration _connectionConfiguration;
     private boolean _lastPartReached;
     private SQLException _lastOccurredException = null;
 
-    ResultSetHolder(ResultSet resultSet, ConnectionConfiguration config, boolean lastPartReached) throws SQLException {
+    ResultSetHolder(ResultSet resultSet, ResultSetMetaData metaData, ConnectionConfiguration config, boolean lastPartReached) throws SQLException {
         _resultSet = resultSet;
+        _metaData = metaData;
         _connectionConfiguration = config;
         _lastPartReached = lastPartReached;
         if(!_lastPartReached) {
@@ -43,15 +46,13 @@ public class ResultSetHolder {
     }
 
     public ResultSetMetaData getMetaData() throws SQLException {
-        synchronized (_lock) {
-            return _resultSet.getMetaData();
-        }
+    	return _metaData;
     }
 
     public void close() throws SQLException {
         synchronized (_lock) {
             _resultSet.close();
-            _resultSet = null;
+//            _resultSet = null;
         }
     }
 
@@ -100,9 +101,10 @@ public class ResultSetHolder {
                                 // When the ResultSet is null here, the client closed the ResultSet concurrently right
                                 // after the upper check "_resultSet != null".
                                 if(_resultSet != null) {
-                                    RowPacket rowPacket = new RowPacket(_connectionConfiguration.getRowPacketSize(), false);
+                                    RowPacket rowPacket = new RowPacket(_connectionConfiguration.getRowPacketSize()/*, false*/, packetIndex);
+                                    packetIndex++;
                                     // Populate the new RowPacket using the ResultSet
-                                    _lastPartReached = rowPacket.populate(_resultSet);
+                                    _lastPartReached = rowPacket.populate(_resultSet, _metaData);
                                     _currentSerializedRowPacket = rowPacket;
                                 }
                             } catch (SQLException e) {

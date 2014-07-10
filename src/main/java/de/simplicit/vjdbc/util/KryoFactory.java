@@ -135,8 +135,24 @@ import de.simplicit.vjdbc.parameters.TimestampParameter;
 import de.simplicit.vjdbc.parameters.TimestampParameterSerializer;
 import de.simplicit.vjdbc.parameters.URLParameter;
 import de.simplicit.vjdbc.parameters.URLParameterSerializer;
+import de.simplicit.vjdbc.serial.BigDecimalColumnValues;
+import de.simplicit.vjdbc.serial.BigDecimalColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.BooleanColumnValues;
+import de.simplicit.vjdbc.serial.BooleanColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.ByteColumnValues;
+import de.simplicit.vjdbc.serial.ByteColumnValuesSerializer;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.CallingContextSerializer;
+import de.simplicit.vjdbc.serial.DoubleColumnValues;
+import de.simplicit.vjdbc.serial.DoubleColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.FloatColumnValues;
+import de.simplicit.vjdbc.serial.FloatColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.IntegerColumnValues;
+import de.simplicit.vjdbc.serial.IntegerColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.LongColumnValues;
+import de.simplicit.vjdbc.serial.LongColumnValuesSerializer;
+import de.simplicit.vjdbc.serial.ObjectColumnValues;
+import de.simplicit.vjdbc.serial.ObjectColumnValuesSerializer;
 import de.simplicit.vjdbc.serial.RowPacket;
 import de.simplicit.vjdbc.serial.RowPacketSerializer;
 import de.simplicit.vjdbc.serial.SerialArray;
@@ -151,6 +167,8 @@ import de.simplicit.vjdbc.serial.SerialRefSerializer;
 import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
 import de.simplicit.vjdbc.serial.SerialRowId;
 import de.simplicit.vjdbc.serial.SerialRowIdSerializer;
+import de.simplicit.vjdbc.serial.ShortColumnValues;
+import de.simplicit.vjdbc.serial.ShortColumnValuesSerializer;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.serial.UIDExSerializer;
@@ -207,6 +225,15 @@ public class KryoFactory {
 	private static final PreparedStatementUpdateCommandSerializer PREPARED_STATEMENT_UPDATE_COMMAND_SERIALIZER = new PreparedStatementUpdateCommandSerializer();
 	private static final StatementUpdateCommandSerializer STATEMENT_UPDATE_COMMAND_SERIALIZER = new StatementUpdateCommandSerializer();
 	
+	private static final BooleanColumnValuesSerializer BOOLEAN_COLUMN_VALUES_SERIALIZER = new BooleanColumnValuesSerializer();
+	private static final ByteColumnValuesSerializer BYTE_COLUMN_VALUES_SERIALIZER = new ByteColumnValuesSerializer();
+	private static final ShortColumnValuesSerializer SHORT_COLUMN_VALUES_SERIALIZER = new ShortColumnValuesSerializer();
+	private static final IntegerColumnValuesSerializer INTEGER_COLUMN_VALUES_SERIALIZER = new IntegerColumnValuesSerializer();
+	private static final LongColumnValuesSerializer LONG_COLUMN_VALUES_SERIALIZER = new LongColumnValuesSerializer();
+	private static final FloatColumnValuesSerializer FLOAT_COLUMN_VALUES_SERIALIZER = new FloatColumnValuesSerializer();
+	private static final DoubleColumnValuesSerializer DOUBLE_COLUMN_VALUES_SERIALIZER = new DoubleColumnValuesSerializer();
+	private static final ObjectColumnValuesSerializer OBJECT_COLUMN_VALUES_SERIALIZER = new ObjectColumnValuesSerializer();
+	private static final BigDecimalColumnValuesSerializer BIG_DECIMAL_COLUMN_VALUES_SERIALIZER = new BigDecimalColumnValuesSerializer();
 	
 	private final ConcurrentLinkedQueue<Kryo> kryoCache = new ConcurrentLinkedQueue<Kryo>();
 	
@@ -281,6 +308,17 @@ public class KryoFactory {
 		kryo.register(VJdbcException.class);
 		kryo.register(UIDEx.class, UIDEX_SERIALIZER);
 		kryo.register(CallingContext.class, CALLING_CONTEXT_SERIALIZER);
+		
+		kryo.register(BooleanColumnValues.class, BOOLEAN_COLUMN_VALUES_SERIALIZER);
+		kryo.register(ByteColumnValues.class, BYTE_COLUMN_VALUES_SERIALIZER);
+		kryo.register(ShortColumnValues.class, SHORT_COLUMN_VALUES_SERIALIZER);
+		kryo.register(IntegerColumnValues.class, INTEGER_COLUMN_VALUES_SERIALIZER);
+		kryo.register(LongColumnValues.class, LONG_COLUMN_VALUES_SERIALIZER);
+		kryo.register(FloatColumnValues.class, FLOAT_COLUMN_VALUES_SERIALIZER);
+		kryo.register(DoubleColumnValues.class, DOUBLE_COLUMN_VALUES_SERIALIZER);
+		kryo.register(ObjectColumnValues.class, OBJECT_COLUMN_VALUES_SERIALIZER);
+		kryo.register(BigDecimalColumnValues.class, BIG_DECIMAL_COLUMN_VALUES_SERIALIZER);
+		
 		kryo.register(RowPacket.class, ROW_PACKET_SERIALIZER);
 		kryo.register(SerialArray.class, SERIAL_ARRAY_SERIALIZER);
 		kryo.register(SerialDatabaseMetaData.class, SERIAL_DATABASE_METADATA_SERIALIZER);

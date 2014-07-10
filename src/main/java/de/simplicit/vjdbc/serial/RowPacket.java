@@ -14,8 +14,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Struct;
 import java.sql.Types;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -33,36 +31,34 @@ public class RowPacket implements Externalizable {
     private static Log _logger = LogFactory.getLog(RowPacket.class);
 
     private int _rowCount = 0;
-    private boolean _forwardOnly = false;
     private boolean _lastPart = false;
-
-    private FlattenedColumnValues[] _flattenedColumnsValues = null;
+    private int _index;
+    private ColumnValues[] _flattenedColumnsValues = null;
     
     // Transient attributes
-    private transient List<RowPacket> chain = null;
     private transient int[] _columnTypes = null;
-    private transient int _offset = 0;
     private transient int _maxrows = 0;
 
     public RowPacket() {
+    	
     }
 
-    public RowPacket(int packetsize, boolean forwardOnly) {
+    public RowPacket(int packetsize, int index) {
         _maxrows = packetsize;
-        _forwardOnly = forwardOnly;
+        _index = index;
     }
 
     
-    RowPacket(boolean forwardOnly, boolean lastPart, int rowCount, FlattenedColumnValues[] flattenedColumnsValues){
-    	this._forwardOnly = forwardOnly;
+    RowPacket(int index, boolean lastPart, int rowCount, ColumnValues[] flattenedColumnsValues){
+    	this._index = index;
     	this._lastPart = lastPart;
     	this._rowCount = rowCount;
     	this._flattenedColumnsValues = flattenedColumnsValues;
     }
     
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeBoolean(_forwardOnly);
-        out.writeBoolean(_lastPart);
+    	out.writeInt(_index);
+    	out.writeBoolean(_lastPart);
         out.writeInt(_rowCount);
         if(_rowCount > 0) {
             out.writeObject(_flattenedColumnsValues);
@@ -70,69 +66,19 @@ public class RowPacket implements Externalizable {
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        _forwardOnly = in.readBoolean();
-        _lastPart = in.readBoolean();
+    	_index = in.readInt();
+    	_lastPart = in.readBoolean();
         _rowCount = in.readInt();
         if (_rowCount>0){
-        	_flattenedColumnsValues = (FlattenedColumnValues[]) in.readObject();
+        	_flattenedColumnsValues = (ColumnValues[]) in.readObject();
         }
-        
-//        if(_rowCount > 0) {
-//            FlattenedColumnValues[] flattenedColumns = (FlattenedColumnValues[]) in.readObject();
-//            _rows = new ArrayList(_rowCount);
-//            for(int i = 0; i < _rowCount; i++) {
-//                Object[] row = new Object[flattenedColumns.length];
-//                for(int j = 0; j < flattenedColumns.length; j++) {
-//                    row[j] = flattenedColumns[j].getValue(i);
-//                }
-//                _rows.add(row);
-//            }
-//        }
-//        else {
-//            _rows = new ArrayList();
-//        }
-    }
-
-    public Object[] get(int index) throws SQLException {
-    	RowPacket rowPacket = this;
-        if (chain!=null){
-        	rowPacket = chain.get(index/_rowCount);
-        }
-
-    	int adjustedIndex = index - rowPacket._offset;
-
-        if(adjustedIndex < 0) {
-            throw new SQLException("Index " + index + " is below the possible index");
-        } else if(adjustedIndex >= rowPacket._rowCount) {
-            throw new SQLException("Index " + index + " is above the possible index");
-        } else {
-        	// in Augeo each row is read only once, so there is no need to cache 
-        	Object[] row = new Object[rowPacket._flattenedColumnsValues.length];
-        	for (int k=0; k<row.length; k++){
-        		row[k] = rowPacket._flattenedColumnsValues[k].getValue(adjustedIndex);
-        	}
-        	return row;
-        }
-    }
-
-    public int size() {
-    	RowPacket rowPacket = this;
-        if (chain!=null){
-        	rowPacket = chain.get(chain.size()-1);
-        }
-        return rowPacket._offset + rowPacket._rowCount;
     }
 
     public boolean isLastPart() {
-    	RowPacket rowPacket = this;
-        if (chain!=null){
-        	rowPacket = chain.get(chain.size()-1);
-        }    	
-    	return rowPacket._lastPart;
+    	return _lastPart;
     }
 
-    public boolean populate(ResultSet rs) throws SQLException {
-        ResultSetMetaData metaData = rs.getMetaData();
+    public boolean populate(ResultSet rs, ResultSetMetaData metaData) throws SQLException {
 
         int columnCount = metaData.getColumnCount();
         _rowCount = 0;
@@ -290,7 +236,8 @@ public class RowPacket implements Externalizable {
 
     private void prepareFlattenedColumns(ResultSetMetaData metaData, int columnCount) throws SQLException {
         _columnTypes = new int[columnCount];
-        _flattenedColumnsValues = new FlattenedColumnValues[columnCount];
+        _flattenedColumnsValues = new ColumnValues[columnCount];
+        int initialSize = _maxrows == 0 ? DEFAULT_ARRAY_SIZE : _maxrows;
 
         for(int i = 1; i <= columnCount; i++) {
             int columnType = _columnTypes[i - 1] = metaData.getColumnType(i);
@@ -304,6 +251,7 @@ public class RowPacket implements Externalizable {
             switch (columnType) {
             case Types.NULL:
             	componentType = Object.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             	
             case Types.CHAR:
@@ -313,78 +261,114 @@ public class RowPacket implements Externalizable {
             case Types.NVARCHAR:
             case Types.LONGNVARCHAR:
             	componentType = String.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             
             case Types.NUMERIC:
             case Types.DECIMAL:
+            	if (metaData.getScale(i) == 0) {
+            		int precision = metaData.getPrecision(i);
+            		if (precision > 0 && precision <= 5) {
+            			_columnTypes[i - 1] = Types.SMALLINT;
+            			componentType = Short.TYPE;
+                    	_flattenedColumnsValues[i - 1] = new ShortColumnValues(initialSize);
+                    	break;
+            		} else if ((precision > 5 && precision < 39) || (precision == 0)){
+            			_columnTypes[i - 1] = Types.INTEGER;
+            			componentType = Integer.TYPE;
+                    	_flattenedColumnsValues[i - 1] = new IntegerColumnValues(initialSize);
+                    	break;
+            		}
+            	}            	
             	componentType = BigDecimal.class;
+            	_flattenedColumnsValues[i - 1] = new BigDecimalColumnValues(initialSize);
             	break;
             case Types.BIT:
                 componentType = Boolean.TYPE;
+            	_flattenedColumnsValues[i - 1] = new BooleanColumnValues(initialSize);
+
                 break;
 
             case Types.TINYINT:
                 componentType = Byte.TYPE;
+            	_flattenedColumnsValues[i - 1] = new ByteColumnValues(initialSize);
                 break;
 
             case Types.SMALLINT:
                 componentType = Short.TYPE;
+            	_flattenedColumnsValues[i - 1] = new ShortColumnValues(initialSize);                
                 break;
 
             case Types.INTEGER:
                 componentType = Integer.TYPE;
+            	_flattenedColumnsValues[i - 1] = new IntegerColumnValues(initialSize);
                 break;
 
             case Types.BIGINT:
                 componentType = Long.TYPE;
+            	_flattenedColumnsValues[i - 1] = new LongColumnValues(initialSize);
                 break;
 
             case Types.REAL:
                 componentType = Float.TYPE;
+            	_flattenedColumnsValues[i - 1] = new FloatColumnValues(initialSize);
                 break;
 
             case Types.FLOAT:
             case Types.DOUBLE:
                 componentType = Double.TYPE;
+            	_flattenedColumnsValues[i - 1] = new DoubleColumnValues(initialSize);                
                 break;
 
             case Types.DATE:
             	componentType = java.sql.Date.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             case Types.TIME:
             	componentType = java.sql.Time.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             case Types.TIMESTAMP:
             	componentType = java.sql.Timestamp.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.BINARY:
             case Types.VARBINARY:
             case Types.LONGVARBINARY:
             	componentType = byte[].class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.JAVA_OBJECT:
             	componentType = SerialJavaObject.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.CLOB:
             	componentType = SerialClob.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.NCLOB:
             	componentType = SerialNClob.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.BLOB:
             	componentType = SerialBlob.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             case Types.ARRAY:
             	componentType = SerialArray.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
             	break;
             case Types.STRUCT:
             	componentType = SerialStruct.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case RowPacket.ORACLE_ROW_ID:
             	componentType = SerialRowId.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             case Types.SQLXML:
             	componentType = SerialSQLXML.class;
+            	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);            	
             	break;
             	
 
@@ -392,50 +376,31 @@ public class RowPacket implements Externalizable {
                 if(JavaVersionInfo.use14Api) {
                     if(columnType == Types.BOOLEAN) {
                         componentType = Boolean.TYPE;
+                    	_flattenedColumnsValues[i - 1] = new BooleanColumnValues(initialSize);
                     } else {
                         componentType = Object.class;
+                    	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);
                     }
                 } else {
                     componentType = Object.class;
+                	_flattenedColumnsValues[i - 1] = new ObjectColumnValues(componentType, initialSize);                    
                 }
                 break;
             }
-
-            _flattenedColumnsValues[i - 1] = new FlattenedColumnValues(componentType, _maxrows == 0 ? DEFAULT_ARRAY_SIZE : _maxrows);
         }
     }
 
-    public void merge(RowPacket rsp) throws SQLException {
-    	if(_forwardOnly) {
-            _offset += _rowCount;
-            _rowCount = rsp._rowCount;
-            _flattenedColumnsValues = rsp._flattenedColumnsValues;
-            _lastPart = rsp._lastPart;
-        } else {
-        	if (chain==null){
-        		chain = new ArrayList<RowPacket>();
-        		chain.add(this);
-        	}
-        	if (_rowCount != rsp._rowCount && !rsp._lastPart){
-        		throw new SQLException("attempt to merge row packet with different length");
-        	}
-        	// avoid copying data, just put the packets in list
-        	RowPacket last = chain.get(chain.size()-1);
-        	rsp._offset = last._offset + last._rowCount;
-        	chain.add(rsp);
-        }
-    }
 
 	int getRowCount() {
 		return _rowCount;
 	}
 
-	boolean isForwardOnly() {
-		return _forwardOnly;
-	}
-
-	FlattenedColumnValues[] getFlattenedColumnsValues() {
+	/** necessary for serialization */
+	ColumnValues[] getFlattenedColumnsValues() {
 		return _flattenedColumnsValues;
 	}
-	
+
+	int getIndex() {
+		return _index;
+	}
 }
