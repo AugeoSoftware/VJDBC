@@ -79,58 +79,64 @@ public class KryoServletCommandSink extends HttpServlet {
         }
 
         if(configResourceInputStream == null) {
-            String msg = "VJDBC-Configuration " + configResource + " not found !";
-            _logger.error(msg);
-            throw new ServletException(msg);
+        	try {
+        		// check if configuration is already initialized
+        		VJdbcConfiguration.singleton(); // throws RuntimeException if not initialized 
+        	} catch (RuntimeException e){
+        		String msg = "VJDBC-Configuration " + configResource + " not found !";
+        		_logger.error(msg);
+        		throw new ServletException(msg);
+        	}
+        } else {
+
+	        // Are config variables specifiec ?
+	        String configVariables = servletConfig.getInitParameter(INIT_PARAMETER_CONFIG_VARIABLES);
+	        Properties configVariablesProps = null;
+	
+	        if(configVariables != null) {
+	            _logger.info("... using variables specified in " + configVariables);
+	
+	            InputStream configVariablesInputStream = null;
+	
+	            try {
+	                configVariablesInputStream = ctx.getResourceAsStream(configVariables);
+	                if(null == configVariablesInputStream) {
+	                    configVariablesInputStream =
+	                        new FileInputStream(ctx.getRealPath(configVariables));
+	                }
+	
+	                if(configVariablesInputStream == null) {
+	                    String msg = "Configuration-Variables " + configVariables + " not found !";
+	                    _logger.error(msg);
+	                    throw new ServletException(msg);
+	                }
+	
+	                configVariablesProps = new Properties();
+	                configVariablesProps.load(configVariablesInputStream);
+	            } catch (IOException e) {
+	                String msg = "Reading of configuration variables failed";
+	                _logger.error(msg, e);
+	                throw new ServletException(msg, e);
+	            } finally {
+	                if(configVariablesInputStream != null) {
+	                    try {
+	                        configVariablesInputStream.close();
+	                    } catch (IOException e) {}
+	                }
+	            }
+	        }
+	
+	        try {
+	            _logger.info("Initialize VJDBC-Configuration");
+	            VJdbcConfiguration.init(configResourceInputStream, configVariablesProps);
+	        } catch (ConfigurationException e) {
+	            _logger.error("Initialization failed", e);
+	            throw new ServletException("VJDBC-Initialization failed", e);
+	        } finally {
+	                StreamCloser.close(configResourceInputStream);
+	        }
         }
-
-        // Are config variables specifiec ?
-        String configVariables = servletConfig.getInitParameter(INIT_PARAMETER_CONFIG_VARIABLES);
-        Properties configVariablesProps = null;
-
-        if(configVariables != null) {
-            _logger.info("... using variables specified in " + configVariables);
-
-            InputStream configVariablesInputStream = null;
-
-            try {
-                configVariablesInputStream = ctx.getResourceAsStream(configVariables);
-                if(null == configVariablesInputStream) {
-                    configVariablesInputStream =
-                        new FileInputStream(ctx.getRealPath(configVariables));
-                }
-
-                if(configVariablesInputStream == null) {
-                    String msg = "Configuration-Variables " + configVariables + " not found !";
-                    _logger.error(msg);
-                    throw new ServletException(msg);
-                }
-
-                configVariablesProps = new Properties();
-                configVariablesProps.load(configVariablesInputStream);
-            } catch (IOException e) {
-                String msg = "Reading of configuration variables failed";
-                _logger.error(msg, e);
-                throw new ServletException(msg, e);
-            } finally {
-                if(configVariablesInputStream != null) {
-                    try {
-                        configVariablesInputStream.close();
-                    } catch (IOException e) {}
-                }
-            }
-        }
-
-        try {
-            _logger.info("Initialize VJDBC-Configuration");
-            VJdbcConfiguration.init(configResourceInputStream, configVariablesProps);
-            _processor = CommandProcessor.getInstance();
-        } catch (ConfigurationException e) {
-            _logger.error("Initialization failed", e);
-            throw new ServletException("VJDBC-Initialization failed", e);
-        } finally {
-                StreamCloser.close(configResourceInputStream);
-        }
+        _processor = CommandProcessor.getInstance();
     }
 
     public void destroy() {

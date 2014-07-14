@@ -4,8 +4,6 @@
 
 package de.simplicit.vjdbc;
 
-import java.rmi.Naming;
-import java.rmi.server.RMISocketFactory;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -15,10 +13,6 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.rmi.PortableRemoteObject;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,12 +21,6 @@ import de.simplicit.vjdbc.command.CommandSink;
 import de.simplicit.vjdbc.command.DecoratedCommandSink;
 import de.simplicit.vjdbc.command.NullCallingContextFactory;
 import de.simplicit.vjdbc.command.StandardCallingContextFactory;
-import de.simplicit.vjdbc.ejb.EjbCommandSink;
-import de.simplicit.vjdbc.ejb.EjbCommandSinkProxy;
-import de.simplicit.vjdbc.rmi.CommandSinkRmi;
-import de.simplicit.vjdbc.rmi.CommandSinkRmiProxy;
-import de.simplicit.vjdbc.rmi.ConnectionBrokerRmi;
-import de.simplicit.vjdbc.rmi.SecureSocketFactory;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.servlet.RequestEnhancer;
@@ -50,7 +38,7 @@ public final class VirtualDriver implements Driver {
     private static final String EJB_IDENTIFIER = "ejb:";
     private static final String RMI_IDENTIFIER = "rmi:";
     private static final String SERVLET_IDENTIFIER = "servlet:";
-    private static SecureSocketFactory _sslSocketFactory;
+//    private static SecureSocketFactory _sslSocketFactory;
     private static boolean _cacheEnabled = false;
 
     private static final int MAJOR_VERSION = 1;
@@ -93,25 +81,26 @@ public final class VirtualDriver implements Driver {
 
                 String[] urlparts;
 
-                // EJB-Connection
-                if(realUrl.startsWith(EJB_IDENTIFIER)) {
-                    urlparts = split(realUrl.substring(EJB_IDENTIFIER.length()));
-                    _logger.info("VJdbc in EJB-Mode, using object " + urlparts[0]);
-                    sink = createEjbCommandSink(urlparts[0]);
-                    // RMI-Connection
-                } else if(realUrl.startsWith(RMI_IDENTIFIER)) {
-                    urlparts = split(realUrl.substring(RMI_IDENTIFIER.length()));
-                    _logger.info("VJdbc in RMI-Mode, using object " + urlparts[0]);
-                    // Examine SSL property
-                    boolean useSSL = false;
-                    String propSSL = props.getProperty(VJdbcProperties.RMI_SSL);
-                    useSSL = (propSSL != null && propSSL.equalsIgnoreCase("true"));
-                    if(useSSL) {
-                        _logger.info("Using Secure Socket Layer (SSL)");
-                    }
-                    sink = createRmiCommandSink(urlparts[0], useSSL);
-                    // Servlet-Connection
-                } else if(realUrl.startsWith(SERVLET_IDENTIFIER)) {
+//                // EJB-Connection
+//                if(realUrl.startsWith(EJB_IDENTIFIER)) {
+//                    urlparts = split(realUrl.substring(EJB_IDENTIFIER.length()));
+//                    _logger.info("VJdbc in EJB-Mode, using object " + urlparts[0]);
+//                    sink = createEjbCommandSink(urlparts[0]);
+//                    // RMI-Connection
+//                } else if(realUrl.startsWith(RMI_IDENTIFIER)) {
+//                    urlparts = split(realUrl.substring(RMI_IDENTIFIER.length()));
+//                    _logger.info("VJdbc in RMI-Mode, using object " + urlparts[0]);
+//                    // Examine SSL property
+//                    boolean useSSL = false;
+//                    String propSSL = props.getProperty(VJdbcProperties.RMI_SSL);
+//                    useSSL = (propSSL != null && propSSL.equalsIgnoreCase("true"));
+//                    if(useSSL) {
+//                        _logger.info("Using Secure Socket Layer (SSL)");
+//                    }
+//                    sink = createRmiCommandSink(urlparts[0], useSSL);
+//                    // Servlet-Connection
+//                } else 
+                if(realUrl.startsWith(SERVLET_IDENTIFIER)) {
                     urlparts = split(realUrl.substring(SERVLET_IDENTIFIER.length()));
                     _logger.info("VJdbc in Servlet-Mode, using URL " + urlparts[0]);
                     sink = createServletCommandSink(urlparts[0], props);
@@ -174,26 +163,26 @@ public final class VirtualDriver implements Driver {
         return true;
     }
 
-    private CommandSink createRmiCommandSink(String rminame, boolean useSSL) throws Exception {
-        if(useSSL) {
-            if(_sslSocketFactory == null) {
-                _sslSocketFactory = new SecureSocketFactory();
-                RMISocketFactory.setSocketFactory(_sslSocketFactory);
-            }
-        }
-        ConnectionBrokerRmi broker = (ConnectionBrokerRmi)Naming.lookup(rminame);
-        CommandSinkRmi rmiSink = broker.createCommandSink();
-        CommandSink proxy = new CommandSinkRmiProxy(rmiSink);
-        return proxy;
-    }
+//    private CommandSink createRmiCommandSink(String rminame, boolean useSSL) throws Exception {
+//        if(useSSL) {
+//            if(_sslSocketFactory == null) {
+//                _sslSocketFactory = new SecureSocketFactory();
+//                RMISocketFactory.setSocketFactory(_sslSocketFactory);
+//            }
+//        }
+//        ConnectionBrokerRmi broker = (ConnectionBrokerRmi)Naming.lookup(rminame);
+//        CommandSinkRmi rmiSink = broker.createCommandSink();
+//        CommandSink proxy = new CommandSinkRmiProxy(rmiSink);
+//        return proxy;
+//    }
 
-    private CommandSink createEjbCommandSink(String ejbname) throws Exception {
-        Context ctx = new InitialContext();
-        _logger.info("Lookup " + ejbname);
-        Object ref = ctx.lookup(ejbname);
-        _logger.info("remote bean " + ref.getClass().getName());
-        return (EjbCommandSinkProxy)ref;
-    }
+//    private CommandSink createEjbCommandSink(String ejbname) throws Exception {
+//        Context ctx = new InitialContext();
+//        _logger.info("Lookup " + ejbname);
+//        Object ref = ctx.lookup(ejbname);
+//        _logger.info("remote bean " + ref.getClass().getName());
+//        return (EjbCommandSinkProxy)ref;
+//    }
 
     private CommandSink createServletCommandSink(String url, Properties props) throws Exception {
         RequestEnhancer requestEnhancer = null;
