@@ -79,7 +79,7 @@
               <finalName>vjdbc-${project.version}</finalName>
               <includes>
                 <include>de/simplicit/vjdbc/**</include>
-                <include>**/*_Stub.class</include>
+                <include>com/esotericsoftware/minlog/**</include>
                 <include>META-INF/services/java.sql.Driver</include>
               </includes>
             </configuration>
