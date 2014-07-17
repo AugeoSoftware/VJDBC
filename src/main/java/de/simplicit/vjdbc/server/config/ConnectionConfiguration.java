@@ -4,32 +4,77 @@
 
 package de.simplicit.vjdbc.server.config;
 
-import de.simplicit.vjdbc.VJdbcException;
-import de.simplicit.vjdbc.VJdbcProperties;
-import de.simplicit.vjdbc.server.DataSourceProvider;
-import de.simplicit.vjdbc.server.LoginHandler;
-import de.simplicit.vjdbc.server.concurrent.Executor;
-import de.simplicit.vjdbc.server.concurrent.PooledExecutor;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.zip.Deflater;
 
-import org.apache.commons.dbcp.ConnectionFactory;
+import javax.sql.DataSource;
+
 import org.apache.commons.dbcp.DriverManagerConnectionFactory;
 import org.apache.commons.dbcp.PoolableConnectionFactory;
 import org.apache.commons.dbcp.PoolingDriver;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.GenericObjectPool;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.Properties;
-import java.util.zip.Deflater;
+import de.simplicit.vjdbc.VJdbcException;
+import de.simplicit.vjdbc.VJdbcProperties;
+import de.simplicit.vjdbc.server.DataSourceProvider;
+import de.simplicit.vjdbc.server.LoginHandler;
+import de.simplicit.vjdbc.server.concurrent.Executor;
 
 public class ConnectionConfiguration implements Executor {
     private static Log _logger = LogFactory.getLog(ConnectionConfiguration.class);
-    private static final String DBCP_ID = "jdbc:apache:commons:dbcp:";
+    static final String DBCP_ID = "jdbc:apache:commons:dbcp:";
 
+
+    private class ConnectionPoolInitializer {
+    	/**
+    	 * moved this method to dedicated class to avoid loading DBCP classes, if connection pooling is off
+    	 * @param jdbcurl
+    	 * @param props
+    	 * @return
+    	 * @throws SQLException
+    	 */
+    	private boolean initializeConnectionPool(String jdbcurl, Properties props) throws SQLException {
+    		try {
+    			// Try to load the DBCP-Driver
+    			Class.forName("org.apache.commons.dbcp.PoolingDriver");
+    			// Populate configuration object
+    			ObjectPool _connectionPool;
+    			if (_connectionPoolConfiguration != null) {
+    				GenericObjectPool.Config poolConfig = new GenericObjectPool.Config();
+    				poolConfig.maxActive = _connectionPoolConfiguration.getMaxActive();
+    				poolConfig.maxIdle = _connectionPoolConfiguration.getMaxIdle();
+    				poolConfig.maxWait = _connectionPoolConfiguration.getMaxWait();
+    				poolConfig.minIdle = _connectionPoolConfiguration.getMinIdle();
+    				poolConfig.minEvictableIdleTimeMillis = _connectionPoolConfiguration.getMinEvictableIdleTimeMillis();
+    				poolConfig.timeBetweenEvictionRunsMillis = _connectionPoolConfiguration.getTimeBetweenEvictionRunsMillis();
+    				_connectionPool = new LoggingGenericObjectPool(_id, poolConfig);
+    			} else {
+    				_connectionPool = new LoggingGenericObjectPool(_id);
+    			}
+    			
+    			DriverManagerConnectionFactory connectionFactory = new DriverManagerConnectionFactory(jdbcurl, props);
+    			new PoolableConnectionFactory(connectionFactory, (ObjectPool) _connectionPool, null, null, false, true);
+    			PoolingDriver driver = (PoolingDriver) DriverManager.getDriver(DBCP_ID);
+    			// Register pool with connection id
+    			driver.registerPool(_id, (ObjectPool) _connectionPool);
+    			_logger.debug("Connection-Pooling successfully initialized for connection " + _id);
+    			return true;
+    		} catch (ClassNotFoundException e) {
+    			_logger.error("Jakarta-DBCP-Driver not found, switching it off for connection " + _id, e);
+    			return false;
+    		}
+    	}   	
+    }
+    
+    
     // Basic properties
     protected String _id;
     protected String _driver;
@@ -49,7 +94,7 @@ public class ConnectionConfiguration implements Executor {
     protected int _compressionMode = Deflater.BEST_SPEED;
     protected long _compressionThreshold = 1000;
     // Connection pooling
-    protected boolean _connectionPooling = true;
+    protected boolean _connectionPooling = false;
     protected ConnectionPoolConfiguration _connectionPoolConfiguration = null;
     // Fetch the metadata of a resultset immediately after constructing
     protected boolean _prefetchResultSetMetaData = false;
@@ -63,11 +108,12 @@ public class ConnectionConfiguration implements Executor {
 
     // Connection pooling support
     private boolean _driverInitialized = false;
-    private Boolean _connectionPoolInitialized = Boolean.FALSE;
-    private GenericObjectPool _connectionPool = null;
+    private boolean _connectionPoolInitialized = false;
     // Thread pooling support
     private int _maxThreadPoolSize = 8;
-    private PooledExecutor _pooledExecutor = new PooledExecutor(_maxThreadPoolSize);
+    // FIXME: this might be a bottleneck
+    // TODO make _maxThreadPoolSize an external parameter
+    private ExecutorService _pooledExecutor = Executors.newFixedThreadPool(_maxThreadPoolSize);
 
     public String getId() {
         return _id;
@@ -398,44 +444,19 @@ public class ConnectionConfiguration implements Executor {
         }
 
         // Connection pooling with DBCP
-        if(_connectionPooling && _connectionPoolInitialized != null) {
-            String dbcpId = DBCP_ID + _id;
-
-            if(_connectionPool != null) {
-                jdbcurl = dbcpId;
-            } else {
-                try {
-                    // Try to load the DBCP-Driver
-                    Class.forName("org.apache.commons.dbcp.PoolingDriver");
-                    // Populate configuration object
-                    if(_connectionPoolConfiguration != null) {
-                        GenericObjectPool.Config poolConfig = new GenericObjectPool.Config();
-                        poolConfig.maxActive = _connectionPoolConfiguration.getMaxActive();
-                        poolConfig.maxIdle = _connectionPoolConfiguration.getMaxIdle();
-                        poolConfig.maxWait = _connectionPoolConfiguration.getMaxWait();
-                        poolConfig.minIdle = _connectionPoolConfiguration.getMinIdle();
-                        poolConfig.minEvictableIdleTimeMillis = _connectionPoolConfiguration.getMinEvictableIdleTimeMillis();
-                        poolConfig.timeBetweenEvictionRunsMillis = _connectionPoolConfiguration.getTimeBetweenEvictionRunsMillis();
-                        _connectionPool = new LoggingGenericObjectPool(_id, poolConfig);
-                    }
-                    else {
-                        _connectionPool = new LoggingGenericObjectPool(_id);
-                    }
-
-                    ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(jdbcurl, props);
-                    new PoolableConnectionFactory(connectionFactory, _connectionPool, null, null, false, true);
-                    PoolingDriver driver = (PoolingDriver) DriverManager.getDriver(DBCP_ID);
-                    // Register pool with connection id
-                    driver.registerPool(_id, _connectionPool);
-                    _connectionPoolInitialized = Boolean.TRUE;
-                    jdbcurl = dbcpId;
-                    _logger.debug("Connection-Pooling successfully initialized for connection " + _id);
-                } catch (ClassNotFoundException e) {
-                    _connectionPool = null;
-                    _connectionPoolInitialized = null;
-                    _logger.error("Jakarta-DBCP-Driver not found, switching it off for connection " + _id, e);
-                }
-            }
+        if (_connectionPooling ){
+        	String dbcpId = DBCP_ID + _id;
+        	if (_connectionPoolInitialized){
+        		jdbcurl = dbcpId;
+        	} else {
+	        	// initialize connection pool
+        		_connectionPoolInitialized = new ConnectionPoolInitializer().initializeConnectionPool(jdbcurl, props);
+        		if (_connectionPoolInitialized){
+        			jdbcurl = dbcpId;
+        		} else {
+        			_connectionPooling = false; // prevent further attempts to initialize connection pool
+        		}
+        	}
         }
 
         return DriverManager.getConnection(jdbcurl, props);
