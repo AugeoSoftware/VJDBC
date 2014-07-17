@@ -196,19 +196,20 @@ public final class VirtualDriver implements Driver {
             _logger.debug("RequestEnhancerFactory successfully created");
             requestEnhancer = requestEnhancerFactory.create();
         }
-
-        // Decide here if we should use Jakarta-HTTP-Client or Kryo Http Client
-        String useKryoHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_KRYO_HTTP_CLIENT);
-        String useJakartaHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_JAKARTA_HTTP_CLIENT);
-        if (useKryoHttpClient!=null && useKryoHttpClient.equals("true")) {
-        	return new KryoServletCommandSinkJdkHttpClient(url, requestEnhancer);
-        } 
-        else if(useJakartaHttpClient != null && useJakartaHttpClient.equals("true")) {
-            return new ServletCommandSinkJakartaHttpClient(url, requestEnhancer);
-        }
-        else {
-            return new ServletCommandSinkJdkHttpClient(url, requestEnhancer);
-        }
+        // for now support only Kryo serialization via JDK HTTP client
+        return new KryoServletCommandSinkJdkHttpClient(url, requestEnhancer);
+        // TODO Decide here if we should use Jakarta-HTTP-Client or Kryo Http Client
+//        String useKryoHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_KRYO_HTTP_CLIENT);
+//        String useJakartaHttpClient = props.getProperty(VJdbcProperties.SERVLET_USE_JAKARTA_HTTP_CLIENT);
+//        if (useKryoHttpClient!=null && useKryoHttpClient.equals("true")) {
+//        	return new KryoServletCommandSinkJdkHttpClient(url, requestEnhancer);
+//        } 
+//        else if(useJakartaHttpClient != null && useJakartaHttpClient.equals("true")) {
+//            return new ServletCommandSinkJakartaHttpClient(url, requestEnhancer);
+//        }
+//        else {
+//            return new ServletCommandSinkJdkHttpClient(url, requestEnhancer);
+//        }
     }
 
     // Helper method (can't use the 1.4-Method because support for 1.3 is desired)

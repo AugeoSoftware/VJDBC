@@ -4,8 +4,12 @@
 
 package de.simplicit.vjdbc.servlet.kryo;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.CONNECT_COMMAND;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.PROCESS_COMMAND;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.PROTOCOL_KRYO;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.VERSION_IDENTIFIER;
+
 import java.net.HttpURLConnection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -14,12 +18,12 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import de.simplicit.vjdbc.Version;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.servlet.AbstractServletCommandSinkClient;
 import de.simplicit.vjdbc.servlet.RequestEnhancer;
-import de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier;
 import de.simplicit.vjdbc.util.DeflatingOutput;
 import de.simplicit.vjdbc.util.InflatingInput;
 import de.simplicit.vjdbc.util.KryoFactory;
@@ -28,6 +32,8 @@ import de.simplicit.vjdbc.util.StreamCloser;
 
 public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandSinkClient {
     
+	private static final String PROTOCOL_VERSION = Version.version+PROTOCOL_KRYO;
+	
 	private final Kryo kryo;
 	
 	public KryoServletCommandSinkJdkHttpClient(String url, RequestEnhancer requestEnhancer) throws SQLException {
@@ -48,14 +54,16 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             conn.setRequestMethod("POST");
             conn.setAllowUserInteraction(false); // system may not ask the user
             conn.setUseCaches(false);
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestProperty("Content-type", "binary/x-java-serialized" );
-            conn.setRequestProperty(ServletCommandSinkIdentifier.METHOD_IDENTIFIER,
-                                    ServletCommandSinkIdentifier.CONNECT_COMMAND);
+            conn.setRequestProperty(V2_METHOD_IDENTIFIER, CONNECT_COMMAND);
+            conn.setRequestProperty(VERSION_IDENTIFIER, PROTOCOL_VERSION);
             // Finally let the optional Request-Enhancer set request properties
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceConnectRequest(new KryoRequestModifier(conn));
             }
 
+            
             // Write the parameter objects to the ObjectOutputStream
             output = new DeflatingOutput(conn.getOutputStream());
             kryo.writeObject(output, database);
@@ -66,12 +74,24 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             
             // Connect ...
             conn.connect();
-            // Read the result object from the InputStream
+            // check the response
+            int responseCode = conn.getResponseCode();
+            switch (responseCode){
+            case HttpURLConnection.HTTP_MOVED_TEMP: // response from legacy 1.x version, caused by change in ServletCommandSinkIdentifier.METHOD_IDENTIFIER
+            	throw new SQLException("The client VJDBC driver version "+PROTOCOL_VERSION+" is not compatible with the server version 1.x");
+            case HttpURLConnection.HTTP_VERSION: // response from version 2.0+
+            	throw new SQLException("The client VJDBC driver version "+PROTOCOL_VERSION+" is not compatible with the server version "+conn.getHeaderField(VERSION_IDENTIFIER));
+            case HttpURLConnection.HTTP_OK:
+            	break;
+            default:
+            	throw new SQLException("Unexpected server response: "+responseCode+" "+conn.getResponseMessage());
+            }
             
+            // Read the result object from the InputStream            
             input = new InflatingInput(conn.getInputStream());
             Object result = kryo.readClassAndObject(input);
             
-//            // This might be a SQLException which must be rethrown
+            // This might be a SQLException which must be rethrown
             if(result instanceof SQLException) {
                 throw (SQLException)result;
             }
@@ -103,7 +123,8 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             conn.setDoOutput(true);
             conn.setDoInput(true);
             conn.setRequestMethod("POST");
-            conn.setRequestProperty(ServletCommandSinkIdentifier.METHOD_IDENTIFIER, ServletCommandSinkIdentifier.PROCESS_COMMAND);
+            conn.setRequestProperty(VERSION_IDENTIFIER, PROTOCOL_VERSION);
+            conn.setRequestProperty(V2_METHOD_IDENTIFIER, PROCESS_COMMAND);
             // Finally let the optional Request-Enhancer set request properties
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceProcessRequest(new KryoRequestModifier(conn));

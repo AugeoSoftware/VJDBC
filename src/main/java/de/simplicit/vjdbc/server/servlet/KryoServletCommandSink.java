@@ -4,19 +4,22 @@
 
 package de.simplicit.vjdbc.server.servlet;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.PROTOCOL_KRYO;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER;
+import static de.simplicit.vjdbc.servlet.ServletCommandSinkIdentifier.VERSION_IDENTIFIER;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.zip.Deflater;
 
 import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -30,6 +33,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import de.simplicit.vjdbc.VJdbcProperties;
+import de.simplicit.vjdbc.Version;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.server.command.CommandProcessor;
@@ -42,7 +46,6 @@ import de.simplicit.vjdbc.util.InflatingInput;
 import de.simplicit.vjdbc.util.KryoFactory;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 import de.simplicit.vjdbc.util.StreamCloser;
-import javax.servlet.ServletContext;
 
 public class KryoServletCommandSink extends HttpServlet {
     private static final String INIT_PARAMETER_CONFIG_RESOURCE = "config-resource";
@@ -50,6 +53,8 @@ public class KryoServletCommandSink extends HttpServlet {
     private static final String DEFAULT_CONFIG_RESOURCE = "/WEB-INF/vjdbc-config.xml";
     private static final long serialVersionUID = 3257570624301249846L;
     private static Log _logger = LogFactory.getLog(KryoServletCommandSink.class);
+
+	private static final String PROTOCOL_VERSION = Version.version+PROTOCOL_KRYO;
 
     private CommandProcessor _processor;
 
@@ -156,9 +161,17 @@ public class KryoServletCommandSink extends HttpServlet {
         Kryo kryo = null;
         try {
             // Get the method to execute
-            String method = httpServletRequest.getHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER);
+            String method = httpServletRequest.getHeader(V2_METHOD_IDENTIFIER);
 
             if(method != null) {
+            	// check the version
+            	String clientVersion = httpServletRequest.getHeader(VERSION_IDENTIFIER);
+            	if (!PROTOCOL_VERSION.equals(clientVersion)){
+            		httpServletResponse.setHeader(VERSION_IDENTIFIER, PROTOCOL_VERSION);
+            		httpServletResponse.sendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
+            		return;
+            	}
+            	
             	kryo = KryoFactory.getInstance().getKryo();
                 //ois = new ObjectInputStream(httpServletRequest.getInputStream());
             	input = new InflatingInput(httpServletRequest.getInputStream());
@@ -212,9 +225,21 @@ public class KryoServletCommandSink extends HttpServlet {
 
                 httpServletResponse.flushBuffer();
             } else {
-                // No VJDBC-Method ? Then we redirect the stupid browser user to
-                // some information page :-)
-                httpServletResponse.sendRedirect("index.html");
+            	// No VJDBC-Method ? 
+            	// Probably legacy version client
+            	if (httpServletRequest.getHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER)!=null){
+                    // respond gracefully, using old protocol
+            		OutputStream os = httpServletResponse.getOutputStream();
+                    ObjectOutputStream oos = new ObjectOutputStream(os);
+                    SQLException error = new SQLException("The client VJDBC driver version 1.x is not compatible with the server version "+PROTOCOL_VERSION);
+                    oos.writeObject(error);
+                    oos.flush();
+                    httpServletResponse.flushBuffer();
+            		//httpServletResponse.sendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED, "The client VJDBC driver version 1.x is not compatible with the server version "+Version.version);
+            	} else { 
+            		//Then we redirect the stupid browser user to some information page :-)
+            		httpServletResponse.sendRedirect("index.html");
+            	}
             }
         } catch (Exception e) {
             _logger.error("Unexpected Exception", e);

@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import de.simplicit.vjdbc.VJdbcProperties;
+import de.simplicit.vjdbc.Version;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.server.command.CommandProcessor;
@@ -148,9 +149,16 @@ public class ServletCommandSink extends HttpServlet {
 
         try {
             // Get the method to execute
-            String method = httpServletRequest.getHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER);
+            String method = httpServletRequest.getHeader(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER); 
 
             if(method != null) {
+            	String clientVersion = httpServletRequest.getHeader(ServletCommandSinkIdentifier.VERSION_IDENTIFIER);
+            	if (!Version.version.equals(clientVersion)){
+            		httpServletResponse.setHeader(ServletCommandSinkIdentifier.VERSION_IDENTIFIER, Version.version);
+            		httpServletResponse.sendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
+            		return;
+            	}
+            	
                 ois = new ObjectInputStream(httpServletRequest.getInputStream());
                 // And initialize the output
                 OutputStream os = httpServletResponse.getOutputStream();

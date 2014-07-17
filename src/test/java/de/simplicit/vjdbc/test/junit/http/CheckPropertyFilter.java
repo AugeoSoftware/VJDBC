@@ -19,7 +19,7 @@ public class CheckPropertyFilter implements Filter {
 
     public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest hreq = (HttpServletRequest)req;
-        String method = hreq.getHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER);
+        String method = hreq.getHeader(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER);
                 
         if(method.equals(ServletCommandSinkIdentifier.CONNECT_COMMAND)) {
             String testValue = hreq.getHeader("connect-test-property");

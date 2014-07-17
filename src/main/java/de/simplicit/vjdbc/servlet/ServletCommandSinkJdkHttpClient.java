@@ -35,7 +35,7 @@ public class ServletCommandSinkJdkHttpClient extends AbstractServletCommandSinkC
             conn.setAllowUserInteraction(false); // system may not ask the user
             conn.setUseCaches(false);
             conn.setRequestProperty("Content-type", "binary/x-java-serialized" );
-            conn.setRequestProperty(ServletCommandSinkIdentifier.METHOD_IDENTIFIER,
+            conn.setRequestProperty(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER,
                                     ServletCommandSinkIdentifier.CONNECT_COMMAND);
             // Finally let the optional Request-Enhancer set request properties
             if(_requestEnhancer != null) {
@@ -85,7 +85,7 @@ public class ServletCommandSinkJdkHttpClient extends AbstractServletCommandSinkC
             conn.setDoOutput(true);
             conn.setDoInput(true);
             conn.setRequestMethod("POST");
-            conn.setRequestProperty(ServletCommandSinkIdentifier.METHOD_IDENTIFIER, ServletCommandSinkIdentifier.PROCESS_COMMAND);
+            conn.setRequestProperty(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER, ServletCommandSinkIdentifier.PROCESS_COMMAND);
             // Finally let the optional Request-Enhancer set request properties
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceProcessRequest(new RequestModifierJdk(conn));

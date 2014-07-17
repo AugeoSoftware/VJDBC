@@ -60,7 +60,7 @@ public class ServletCommandSinkJakartaHttpClient extends AbstractServletCommandS
             post.setDoAuthentication(false);
             post.setFollowRedirects(false);
             post.setRequestHeader("Content-type", "binary/x-java-serialized");
-            post.setRequestHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER, ServletCommandSinkIdentifier.CONNECT_COMMAND);
+            post.setRequestHeader(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER, ServletCommandSinkIdentifier.CONNECT_COMMAND);
             // Finally let the optional Request-Enhancer set request headers
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceConnectRequest(new RequestModifierJakartaHttpClient(post));
@@ -111,7 +111,7 @@ public class ServletCommandSinkJakartaHttpClient extends AbstractServletCommandS
             post.setDoAuthentication(false);
             post.setFollowRedirects(false);
             post.setContentChunked(false);
-            post.setRequestHeader(ServletCommandSinkIdentifier.METHOD_IDENTIFIER, ServletCommandSinkIdentifier.PROCESS_COMMAND);
+            post.setRequestHeader(ServletCommandSinkIdentifier.V2_METHOD_IDENTIFIER, ServletCommandSinkIdentifier.PROCESS_COMMAND);
             // Finally let the optional Request-Enhancer set request properties
             if(_requestEnhancer != null) {
                 _requestEnhancer.enhanceProcessRequest(new RequestModifierJakartaHttpClient(post));
