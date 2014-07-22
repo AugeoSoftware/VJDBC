@@ -7,7 +7,6 @@ public class ByteColumnValues extends ColumnValues {
 
 	private byte[] values;
 	private int[] nullFlags = null;
-	private int size = 0;
 
 	ByteColumnValues(byte[] values, int[] nullFlags) {
 		super(Byte.TYPE);

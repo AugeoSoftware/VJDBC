@@ -7,7 +7,6 @@ public class LongColumnValues extends ColumnValues {
 
 	private long[] values = null;
 	private int[] nullFlags = null;
-	private int size = 0;
 	
 	LongColumnValues(long[] values, int[] nullFlags) {
 		super(Long.TYPE);
