@@ -43,57 +43,55 @@ public class FloatColumnValues extends ColumnValues {
 	}
 
 	@Override
-	void setIsNull(int index) {
-		ensureCapacity(index + 1);
+	final void setIsNull(int index) {
 		int i = index >> 5;
 		int m = 1 << (index & 31);
 		nullFlags[i] = nullFlags[i] | m;
 	}
 
 	@Override
-	boolean isNull(int index) {
+	final boolean isNull(int index) {
 		int i = index >> 5;
 		int m = 1 << (index & 31);
 		return (nullFlags[i] & m)!=0;
 	}
 
 	@Override
-	void setFloat(int index, float value) {
-		ensureCapacity(index+1);
+	final void setFloat(int index, float value) {
 		values[index] = value;
 	}
 
 	@Override
-	float getFloat(int index) {
+	final float getFloat(int index) {
 		return values[index];
 	}
 
 	@Override
-	Object getObject(int index) {
+	final Object getObject(int index) {
 		return Float.valueOf(getFloat(index));
 	}
 
 	@Override
-	Object getValues() {
+	final Object getValues() {
 		return values;
 	}
 	
-	int[] getNullFlags() {
+	final int[] getNullFlags() {
 		return nullFlags;
 	}
 	
 	@Override
-	double getDouble(int index) throws SQLException {
+	final double getDouble(int index) throws SQLException {
 		return values[index];
 	}
 
 	@Override
-	String getString(int index) throws SQLException {
+	final String getString(int index) throws SQLException {
 		return Float.toString(values[index]);
 	}
 
 	@Override
-	BigDecimal getBigDecimal(int index) throws SQLException {
+	final BigDecimal getBigDecimal(int index) throws SQLException {
 		return new BigDecimal(values[index]);
 	}
 

@@ -35,30 +35,28 @@ public class ObjectColumnValues extends ColumnValues {
     }
 	
 	@Override
-	void setIsNull(int index) {
-		ensureCapacity(index + 1);
+	final void setIsNull(int index) {
 		values[index] = null;
 	}
 
 	@Override
-	boolean isNull(int index) {
+	final boolean isNull(int index) {
 		return values[index]==null;
 	}
 
 	@Override
-	void setObject(int index, Object value) {
+	final void setObject(int index, Object value) {
 		assert value==null || componentType.isAssignableFrom(value.getClass());
-		ensureCapacity(index + 1);
 		values[index] = value;
 	}
 
 	@Override
-	Object getObject(int index) {
+	final Object getObject(int index) {
 		return values[index];
 	}
 
 	@Override
-	Object getValues() {
+	final Object getValues() {
 		return values;
 	}
 }

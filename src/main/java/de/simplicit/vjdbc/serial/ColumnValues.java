@@ -92,6 +92,10 @@ public abstract class ColumnValues {
 		return size;
 	}
 
+	void setSize(int value){
+		size = value;
+	}
+	
 	Class getComponentType() {
 		return componentType;
 	}

@@ -43,74 +43,70 @@ public class ShortColumnValues extends ColumnValues {
 	}
 
 	@Override
-	void setIsNull(int index) {
-		ensureCapacity(index+1);
+	final void setIsNull(int index) {
 		int i = index >> 5;
 		int m = 1 << (index & 31);
 		nullFlags[i] = nullFlags[i] | m;
 	}
 
 	@Override
-	boolean isNull(int index) {
+	final boolean isNull(int index) {
 		int i = index >> 5;
 		int m = 1 << (index & 31);
 		return (nullFlags[i] & m)!=0;
 	}
 
 	@Override
-	void setShort(int index, short value) {
-		ensureCapacity(index+1);
+	final void setShort(int index, short value) {
 		values[index] = value;
 	}
 
 	@Override
-	short getShort(int index) {
+	final short getShort(int index) {
 		return values[index];
 	}
 
 	@Override
-	Object getObject(int index) {
+	final Object getObject(int index) {
 		return Short.valueOf(getShort(index));
 	}
 	
 	@Override
-	Object getValues() {
+	final Object getValues() {
 		return values;
 	}
 
-	int[] getNullFlags(){
+	final int[] getNullFlags(){
 		return nullFlags;
 	}
 
 	@Override
-	int getInt(int index) throws SQLException {
+	final int getInt(int index) throws SQLException {
 		return values[index];
 	}
 
 	@Override
-	long getLong(int index) throws SQLException {
+	final long getLong(int index) throws SQLException {
 		return values[index];
 	}
 
 	@Override
-	float getFloat(int index) throws SQLException {
+	final float getFloat(int index) throws SQLException {
 		return values[index];
 	}
 
 	@Override
-	double getDouble(int index) throws SQLException {
+	final double getDouble(int index) throws SQLException {
 		return values[index];
 	}
 
 	@Override
-	String getString(int index) throws SQLException {
+	final String getString(int index) throws SQLException {
 		return Short.toString(values[index]);
 	}
 
 	@Override
-	BigDecimal getBigDecimal(int index) throws SQLException {
+	final BigDecimal getBigDecimal(int index) throws SQLException {
 		return new BigDecimal(values[index]);
 	}
-
-
 }

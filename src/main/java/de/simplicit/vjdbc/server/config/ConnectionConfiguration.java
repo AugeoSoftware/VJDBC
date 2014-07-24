@@ -184,7 +184,10 @@ public class ConnectionConfiguration implements Executor {
     }
 
     public void setRowPacketSize(int rowPacketSize) {
-        _rowPacketSize = rowPacketSize;
+        if (rowPacketSize<=0){
+        	throw new IllegalArgumentException("rowPacketSize must be greater than zero");
+        }
+    	_rowPacketSize = rowPacketSize;
     }
 
     public String getCharset() {

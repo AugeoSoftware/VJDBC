@@ -43,8 +43,8 @@ public class RowPacket implements Externalizable {
     	
     }
 
-    public RowPacket(int packetsize, int index) {
-        _maxrows = packetsize;
+    public RowPacket(int packetsize, int index) {    	
+    	_maxrows = packetsize<=0?DEFAULT_ARRAY_SIZE:packetsize;
         _index = index;
     }
 
@@ -82,11 +82,9 @@ public class RowPacket implements Externalizable {
 
         int columnCount = metaData.getColumnCount();
         _rowCount = 0;
+        prepareFlattenedColumns(metaData, columnCount);
 
-        while (rs.next()) {
-            if(_rowCount == 0) {
-                prepareFlattenedColumns(metaData, columnCount);
-            }
+        while (_rowCount<_maxrows && rs.next()) {
 
             for(int i = 1; i <= columnCount; i++) {
                 boolean foundMatch = true;
@@ -224,20 +222,20 @@ public class RowPacket implements Externalizable {
 
             _rowCount++;
 
-            if(_maxrows > 0 && _rowCount == _maxrows) {
-                break;
-            }
         }
 
-        _lastPart = _maxrows == 0 || _rowCount < _maxrows;
-
+        _lastPart = _rowCount < _maxrows; // do not use rs.isAfterLast(), because it is optional for some result sets
+        // IMPORTANT, set actual size to _flattenedColumnsValues
+        for(int i = _flattenedColumnsValues.length-1; i>=0; i--) {
+        	_flattenedColumnsValues[i].setSize(_rowCount);
+        }
         return _lastPart;
     }
 
     private void prepareFlattenedColumns(ResultSetMetaData metaData, int columnCount) throws SQLException {
         _columnTypes = new int[columnCount];
         _flattenedColumnsValues = new ColumnValues[columnCount];
-        int initialSize = _maxrows == 0 ? DEFAULT_ARRAY_SIZE : _maxrows;
+        int initialSize = _maxrows;
 
         for(int i = 1; i <= columnCount; i++) {
             int columnType = _columnTypes[i - 1] = metaData.getColumnType(i);
