@@ -8,8 +8,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.Deflater;
 
 import javax.sql.DataSource;
@@ -26,7 +28,6 @@ import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.server.DataSourceProvider;
 import de.simplicit.vjdbc.server.LoginHandler;
-import de.simplicit.vjdbc.server.concurrent.Executor;
 
 public class ConnectionConfiguration implements Executor {
     private static Log _logger = LogFactory.getLog(ConnectionConfiguration.class);
@@ -110,10 +111,11 @@ public class ConnectionConfiguration implements Executor {
     private boolean _driverInitialized = false;
     private boolean _connectionPoolInitialized = false;
     // Thread pooling support
-    private int _maxThreadPoolSize = 8;
-    // FIXME: this might be a bottleneck
-    // TODO make _maxThreadPoolSize an external parameter
-    private ExecutorService _pooledExecutor = Executors.newFixedThreadPool(_maxThreadPoolSize);
+    private ThreadPoolExecutor _pooledExecutor = new ThreadPoolExecutor(0, // core threads number 
+    																 	8, // maximum threads number
+    																 	60, TimeUnit.MINUTES, // idle timeout
+    																 	new SynchronousQueue<Runnable>(), 
+    																 	new ThreadPoolExecutor.CallerRunsPolicy());//Executors.newFixedThreadPool(_maxThreadPoolSize);
 
     public String getId() {
         return _id;
@@ -351,6 +353,8 @@ public class ConnectionConfiguration implements Executor {
         _logger.info("  Login-Handler .............. " + (_loginHandler != null ? _loginHandler : "none"));
         _logger.info("  Trace Command-Counts ....... " + _traceCommandCount);
         _logger.info("  Trace Orphaned-Objects ..... " + _traceOrphanedObjects);
+        _logger.info("  Min thread pool size ....... " + getMinThreadPoolSize());
+        _logger.info("  Max thread pool size ....... " + getMaxThreadPoolSize());
 
         if(_connectionPoolConfiguration != null) {
             _connectionPoolConfiguration.log();
@@ -505,7 +509,24 @@ public class ConnectionConfiguration implements Executor {
         }
     }
 
-    public void execute(Runnable command) throws InterruptedException {
+    public void execute(Runnable command) {
         _pooledExecutor.execute(command);
     }
+
+	public int getMinThreadPoolSize() {
+		return _pooledExecutor.getCorePoolSize();
+	}
+
+	public void setMinThreadPoolSize(int minThreadPoolSize) {
+		_pooledExecutor.setCorePoolSize(minThreadPoolSize);
+		_pooledExecutor.prestartAllCoreThreads();
+	}
+
+	public int getMaxThreadPoolSize() {
+		return _pooledExecutor.getMaximumPoolSize();
+	}
+
+	public void setMaxThreadPoolSize(int maxThreadPoolSize) {
+		_pooledExecutor.setMaximumPoolSize(maxThreadPoolSize);
+	}
 }

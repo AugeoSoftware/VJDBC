@@ -7,6 +7,7 @@ package de.simplicit.vjdbc.server.command;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -122,8 +123,8 @@ public class ResultSetHolder {
 
                 // Set the flag that the reader thread is considered to be running.
                 _readerThreadIsRunning = true;
-            } catch (InterruptedException e) {
-                String msg = "Reader thread interrupted unexpectedly";
+            } catch (RejectedExecutionException e) {
+                String msg = "Read next row packet task was rejected unexpectedly";
                 _logger.error(msg, e);
                 throw new SQLException(msg);
             }
