@@ -30,7 +30,9 @@ import de.simplicit.vjdbc.server.DataSourceProvider;
 import de.simplicit.vjdbc.server.LoginHandler;
 
 public class ConnectionConfiguration implements Executor {
-    private static Log _logger = LogFactory.getLog(ConnectionConfiguration.class);
+    public static final int DEFAULT_COMPRESSION_THRESHOLD = 1500;
+	public static final int DEFAULT_COMPRESSION_MODE = Deflater.BEST_SPEED;
+	private static Log _logger = LogFactory.getLog(ConnectionConfiguration.class);
     static final String DBCP_ID = "jdbc:apache:commons:dbcp:";
 
 
@@ -92,8 +94,8 @@ public class ConnectionConfiguration implements Executor {
     // Encoding for strings
     protected String _charset = "ISO-8859-1";
     // Compression
-    protected int _compressionMode = Deflater.BEST_SPEED;
-    protected long _compressionThreshold = 1000;
+    protected int _compressionMode = DEFAULT_COMPRESSION_MODE;
+    protected int _compressionThreshold = DEFAULT_COMPRESSION_THRESHOLD;
     // Connection pooling
     protected boolean _connectionPooling = false;
     protected ConnectionPoolConfiguration _connectionPoolConfiguration = null;
@@ -185,9 +187,9 @@ public class ConnectionConfiguration implements Executor {
         return _rowPacketSize;
     }
 
-    public void setRowPacketSize(int rowPacketSize) {
+    public void setRowPacketSize(int rowPacketSize) throws ConfigurationException {
         if (rowPacketSize<=0){
-        	throw new IllegalArgumentException("rowPacketSize must be greater than zero");
+        	throw new ConfigurationException("rowPacketSize must be greater than zero");
         }
     	_rowPacketSize = rowPacketSize;
     }
@@ -205,14 +207,10 @@ public class ConnectionConfiguration implements Executor {
     }
 
     public void setCompressionModeAsInt(int compressionMode) throws ConfigurationException {
-        switch (compressionMode) {
-        case Deflater.BEST_SPEED:
-        case Deflater.BEST_COMPRESSION:
-        case Deflater.NO_COMPRESSION:
-            _compressionMode = compressionMode;
-        default:
-            throw new ConfigurationException("Unknown compression mode");
-        }
+    	if (compressionMode<Deflater.NO_COMPRESSION || compressionMode>Deflater.BEST_COMPRESSION){
+    		throw new ConfigurationException("Unknown compression mode: "+compressionMode);
+    	}
+    	_compressionMode = compressionMode;
     }
 
     public String getCompressionMode() {
@@ -241,11 +239,11 @@ public class ConnectionConfiguration implements Executor {
         }
     }
 
-    public long getCompressionThreshold() {
+    public int getCompressionThreshold() {
         return _compressionThreshold;
     }
 
-    public void setCompressionThreshold(long compressionThreshold) throws ConfigurationException {
+    public void setCompressionThreshold(int compressionThreshold) throws ConfigurationException {
         if(_compressionThreshold < 0) {
             throw new ConfigurationException("Compression threshold must be >= 0");
         }

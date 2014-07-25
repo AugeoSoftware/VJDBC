@@ -30,11 +30,11 @@ import org.apache.commons.logging.LogFactory;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 
 import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.Version;
 import de.simplicit.vjdbc.command.Command;
+import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.server.command.CommandProcessor;
 import de.simplicit.vjdbc.server.config.ConfigurationException;
@@ -157,7 +157,7 @@ public class KryoServletCommandSink extends HttpServlet {
 
     private void handleRequest(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws ServletException {
         Input input = null;
-        Output output = null;
+        DeflatingOutput output = null;
         Kryo kryo = null;
         try {
             // Get the method to execute
@@ -178,7 +178,7 @@ public class KryoServletCommandSink extends HttpServlet {
                 // And initialize the output
                 OutputStream os = httpServletResponse.getOutputStream();
                 //oos = new ObjectOutputStream(os);
-                output = new DeflatingOutput(os); // TODO pass compression parameters
+                output = new DeflatingOutput(os);
                 Object objectToReturn = null;
 
                 try {
@@ -189,6 +189,13 @@ public class KryoServletCommandSink extends HttpServlet {
                     	Long uid = kryo.readObjectOrNull(input, Long.class);
                     	Command cmd = (Command) kryo.readClassAndObject(input);
                     	CallingContext ctx = kryo.readObjectOrNull(input, CallingContext.class);
+                    	if (connuid!=null){
+                    		ConnectionContext connectionEntry = _processor.getConnectionEntry(connuid);
+                    		if (connectionEntry!=null){
+                    			output.setCompressionMode(connectionEntry.getCompressionMode());
+                    			output.setThreshold(connectionEntry.getCompressionThreshold());
+                    		}
+                    	}
                         // Delegate execution to the CommandProcessor
                         objectToReturn = _processor.process(connuid, uid, cmd, ctx);
                     } else if(method.equals(ServletCommandSinkIdentifier.CONNECT_COMMAND)) {

@@ -114,7 +114,7 @@ public class CommandProcessor {
         }
     }
 
-    public ConnectionEntry getConnectionEntry(long connid) {
+    public ConnectionContext getConnectionEntry(long connid) {
         return _connectionEntries.get(connid);
     }
 
@@ -129,14 +129,14 @@ public class CommandProcessor {
 
     public void registerJDBCObject(Long connid, Registerable obj)
     {
-        ConnectionEntry entry = getConnectionEntry(connid);
+    	ConnectionContext entry = getConnectionEntry(connid);
         assert(entry != null);
         entry.addJDBCObject(obj.getReg().getUID(), obj);
     }
 
     public void unregisterJDBCObject(Long connid, Registerable obj)
     {
-        ConnectionEntry entry = getConnectionEntry(connid);
+    	ConnectionContext entry = getConnectionEntry(connid);
         if (entry != null) {
             entry.removeJDBCObject(obj.getReg().getUID());
         }

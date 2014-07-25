@@ -163,7 +163,7 @@ class ConnectionEntry implements ConnectionContext {
         return _connectionConfiguration.getCompressionModeAsInt();
     }
 
-    public long getCompressionThreshold() {
+    public int getCompressionThreshold() {
         return _connectionConfiguration.getCompressionThreshold();
     }
 

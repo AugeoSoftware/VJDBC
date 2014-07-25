@@ -18,7 +18,7 @@ public interface ConnectionContext {
     Object removeJDBCObject(Long key);
     // Compression
     int getCompressionMode();
-    long getCompressionThreshold();
+    int getCompressionThreshold();
     // Row-Packets
     int getRowPacketSize();
     String getCharset();

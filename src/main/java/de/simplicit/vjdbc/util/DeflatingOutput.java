@@ -57,5 +57,20 @@ public class DeflatingOutput extends Output {
 		}
 		super.flush();
 	}
-	
+
+	public int getCompressionMode() {
+		return compressionMode;
+	}
+
+	public void setCompressionMode(int compressionMode) {
+		this.compressionMode = compressionMode;
+	}
+
+	public int getThreshold() {
+		return threshold;
+	}
+
+	public void setThreshold(int threshold) {
+		this.threshold = threshold;
+	}
 }
