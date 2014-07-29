@@ -4,11 +4,8 @@
 
 package de.simplicit.vjdbc.util;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Iterator;
 import java.sql.SQLException;
-import java.sql.SQLWarning;
+import java.util.Iterator;
 
 /**
  * SQLExceptionHelper wraps driver-specific exceptions in a generic SQLException.
@@ -16,22 +13,26 @@ import java.sql.SQLWarning;
 public class SQLExceptionHelper {
 
     public static SQLException wrap(Throwable t) {
-
-        if (isExceptionGeneric(t)) {
-            if (t instanceof SQLException) {
-                return (SQLException)t;
-            }
-            return new SQLException(t.getMessage(), t);
-        }
-
-        return wrapThrowable(t);
+ 
+    	if (t==null || t instanceof SQLException){
+    		return wrap((SQLException)t);
+    	}
+    	if (isExceptionSerializable(t)){
+    		return new SQLException(t.getMessage(), t);
+    	}
+    	return wrapThrowable(t);
     }
-
+    
+    
     public static SQLException wrap(SQLException ex) {
 
-        if (isSQLExceptionGeneric(ex)) {
+    	if (ex==null || 
+    			// some driver may extend SQLException, but the client JRE may not have this class
+    			// filter out such classes
+    			("java.sql".equals(ex.getClass().getPackage().getName()) && 
+    					isSQLExceptionSerializable(ex))) {
             // yes a bit misleading but since this exception is already OK
-            // for transport, its much simplier just to return it
+            // for transport, its much simpler just to return it
             return ex;
         }
         else {
@@ -39,36 +40,36 @@ public class SQLExceptionHelper {
         }
     }
 
-    private static boolean isExceptionGeneric(Throwable ex) {
+    private static boolean isExceptionSerializable(Throwable ex) {
 
-        boolean exceptionIsGeneric = true;
+        boolean exceptionIsSerializable = true;
         Throwable loop = ex;
 
-        while (loop != null && exceptionIsGeneric) {
+        while (loop != null && exceptionIsSerializable) {
 
-            exceptionIsGeneric =
+            exceptionIsSerializable =
                 java.io.Serializable.class.isAssignableFrom(loop.getClass()) ||
                 java.io.Externalizable.class.isAssignableFrom(loop.getClass());
             loop = loop.getCause();
         }
 
-        return exceptionIsGeneric;
+        return exceptionIsSerializable;
     }
 
-    private static boolean isSQLExceptionGeneric(SQLException ex) {
+    private static boolean isSQLExceptionSerializable(SQLException ex) {
 
-        boolean exceptionIsGeneric = true;
+        boolean exceptionIsSerializable = true;
         Iterator<Throwable> it = ex.iterator();
 
-        while (it.hasNext() && exceptionIsGeneric) {
+        while (it.hasNext() && exceptionIsSerializable) {
 
             Throwable t = it.next();
-            exceptionIsGeneric =
+            exceptionIsSerializable =
                 java.io.Serializable.class.isAssignableFrom(t.getClass()) ||
                 java.io.Externalizable.class.isAssignableFrom(t.getClass());
         }
 
-        return exceptionIsGeneric;
+        return exceptionIsSerializable;
     }
 
     private static SQLException wrapSQLException(SQLException ex) {
@@ -80,6 +81,7 @@ public class SQLExceptionHelper {
         if (ex.getNextException() != null) {
             ex2.setNextException(wrap(ex.getNextException()));
         }
+        ex2.setStackTrace(ex.getStackTrace()); // preserve stack trace
         return ex2;
     }
 
@@ -89,13 +91,13 @@ public class SQLExceptionHelper {
         if (t instanceof SQLException) {
             wrapped = wrapSQLException((SQLException)t);
         } else {
-            wrapped = new SQLException(t.getMessage(), wrap(t.getCause()));
+            wrapped = new SQLException(t.getClass().getName()+": "+t.getMessage(), wrap(t.getCause()));
         }
         // REVIEW: doing some evil hackeration here, but only because I believe
         // that those that change stack traces deserve a special place in hell
         // If your code can be hacked by stack trace info, it deserves to
         // be hacked and will be cracked anyway
-        wrapped.setStackTrace(wrapped.getStackTrace());
+        wrapped.setStackTrace(t.getStackTrace());
 
         return wrapped;
     }

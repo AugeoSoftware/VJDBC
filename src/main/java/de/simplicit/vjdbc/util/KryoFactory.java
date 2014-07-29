@@ -1,6 +1,22 @@
 package de.simplicit.vjdbc.util;
 
+import java.sql.BatchUpdateException;
+import java.sql.DataTruncation;
+import java.sql.SQLClientInfoException;
+import java.sql.SQLDataException;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.SQLInvalidAuthorizationSpecException;
+import java.sql.SQLNonTransientConnectionException;
+import java.sql.SQLNonTransientException;
+import java.sql.SQLRecoverableException;
+import java.sql.SQLSyntaxErrorException;
+import java.sql.SQLTimeoutException;
+import java.sql.SQLTransactionRollbackException;
+import java.sql.SQLTransientConnectionException;
+import java.sql.SQLTransientException;
+import java.sql.SQLWarning;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,6 +36,7 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.command.CallableStatementGetArrayCommand;
@@ -304,8 +321,27 @@ public class KryoFactory {
 	private Kryo createKryo() {
 		Kryo kryo = new Kryo();
 		kryo.register(Properties.class);
-		kryo.register(SQLException.class);
-		kryo.register(VJdbcException.class);
+
+		// java.sql exceptions
+		kryo.register(BatchUpdateException.class, new JavaSerializer());
+		kryo.register(DataTruncation.class, new JavaSerializer());
+		kryo.register(SQLClientInfoException.class, new JavaSerializer());
+		kryo.register(SQLDataException.class, new JavaSerializer());		
+		kryo.register(SQLException.class, new JavaSerializer());
+		kryo.register(SQLFeatureNotSupportedException.class, new JavaSerializer());
+		kryo.register(SQLIntegrityConstraintViolationException.class, new JavaSerializer());
+		kryo.register(SQLInvalidAuthorizationSpecException.class, new JavaSerializer());
+		kryo.register(SQLNonTransientConnectionException.class, new JavaSerializer());
+		kryo.register(SQLNonTransientException.class, new JavaSerializer());
+		kryo.register(SQLRecoverableException.class, new JavaSerializer());
+		kryo.register(SQLSyntaxErrorException.class, new JavaSerializer());
+		kryo.register(SQLTimeoutException.class, new JavaSerializer());
+		kryo.register(SQLTransactionRollbackException.class, new JavaSerializer());
+		kryo.register(SQLTransientConnectionException.class, new JavaSerializer());
+		kryo.register(SQLTransientException.class, new JavaSerializer());
+		kryo.register(SQLWarning.class, new JavaSerializer());
+		
+		kryo.register(VJdbcException.class, new JavaSerializer());
 		kryo.register(UIDEx.class, UIDEX_SERIALIZER);
 		kryo.register(CallingContext.class, CALLING_CONTEXT_SERIALIZER);
 		
