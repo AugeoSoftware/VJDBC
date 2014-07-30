@@ -7,15 +7,14 @@ package de.simplicit.vjdbc.server.command;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,7 +24,6 @@ import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
-import de.simplicit.vjdbc.command.ConnectionSetClientInfoCommand;
 import de.simplicit.vjdbc.command.DestroyCommand;
 import de.simplicit.vjdbc.command.JdbcInterfaceType;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
@@ -45,10 +43,9 @@ public class CommandProcessor {
     private static CommandProcessor _singleton;
 
     private static boolean closeConnectionsOnKill = true;
-    private static long s_connectionId = 1;
+    private static AtomicLong s_connectionId = new AtomicLong(1L);
     private Timer _timer = null;
-    private Map<Long, ConnectionEntry> _connectionEntries = 
-        Collections.synchronizedMap(new HashMap<Long, ConnectionEntry>());
+    private Map<Long, ConnectionEntry> _connectionEntries = new ConcurrentHashMap<Long, ConnectionEntry>();
     private OcctConfiguration _occtConfig;
 
     public static CommandProcessor getInstance() {
@@ -114,14 +111,17 @@ public class CommandProcessor {
         }
     }
 
-    public ConnectionContext getConnectionEntry(long connid) {
-        return _connectionEntries.get(connid);
+    public ConnectionContext getConnectionEntry(Long connid) {
+        if (connid!=null){
+        	return _connectionEntries.get(connid);
+        }
+        return null;
     }
 
-    public synchronized UIDEx registerConnection(Connection conn, ConnectionConfiguration config, Properties clientInfo, CallingContext ctx) {
+    public UIDEx registerConnection(Connection conn, ConnectionConfiguration config, Properties clientInfo, CallingContext ctx) {
         // To optimize the communication we can tell the client if
         // calling-contexts should be delivered at all
-        Long connid = new Long(s_connectionId++);
+        Long connid = new Long(s_connectionId.getAndIncrement());
         UIDEx reg = new UIDEx(connid, config.isTraceOrphanedObjects() ? 1 : 0);
         _connectionEntries.put(connid, new ConnectionEntry(connid, conn, config, clientInfo, ctx));
         return reg;
@@ -153,16 +153,16 @@ public class CommandProcessor {
         if (closeConnectionsOnKill) {
 
             // Copy ConnectionEntries for closing
-            ArrayList copyOfConnectionEntries = new ArrayList(_connectionEntries.values());
+            ArrayList<ConnectionEntry> copyOfConnectionEntries = new ArrayList<ConnectionEntry>(_connectionEntries.values());
             // and clear the map immediately
             _connectionEntries.clear();
 
-            for(Iterator it = copyOfConnectionEntries.iterator(); it.hasNext();) {
-                ConnectionEntry connectionEntry = (ConnectionEntry) it.next();
-                synchronized(connectionEntry) {
-                    connectionEntry.close();
-                }
+            for (ConnectionEntry connectionEntry: copyOfConnectionEntries){
+				synchronized (connectionEntry) {
+					connectionEntry.close();
+				}
             }
+
         } else {
             _connectionEntries.clear();
         }
@@ -246,7 +246,7 @@ public class CommandProcessor {
     	int killedConnectionsCount = 0;
     	if (userName!=null){
     		_logger.debug("Killing connections for user "+userName);
-    		synchronized(_connectionEntries){
+//    		synchronized(_connectionEntries){
     			for (Map.Entry<Long, ConnectionEntry>me: _connectionEntries.entrySet()){
     				ConnectionEntry ce = me.getValue();
     				synchronized(ce){
@@ -263,7 +263,7 @@ public class CommandProcessor {
     					}
     				}    				
     			}    			
-    		}
+//    		}
     	}
     	return killedConnectionsCount;
     }

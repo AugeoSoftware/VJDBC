@@ -19,11 +19,13 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -63,11 +65,9 @@ class ConnectionEntry implements ConnectionContext {
 
     // Map containing all JDBC-Objects which are created by this Connection
     // entry
-    private Map<Long, JdbcObjectHolder> _jdbcObjects =
-        Collections.synchronizedMap(new HashMap<Long, JdbcObjectHolder>());
+    private Map<Long, JdbcObjectHolder> _jdbcObjects = new ConcurrentHashMap<Long, JdbcObjectHolder>();
     // Map for counting commands
-    private Map<String, Integer> _commandCountMap =
-        Collections.synchronizedMap(new HashMap<String, Integer>());
+    private ConcurrentMap<String, AtomicInteger> _commandCountMap = new ConcurrentHashMap<String, AtomicInteger>();
 
     ConnectionEntry(Long connuid, Connection conn, ConnectionConfiguration config, Properties clientInfo, CallingContext ctx) {
         _connection = conn;
@@ -95,20 +95,15 @@ class ConnectionEntry implements ConnectionContext {
     }
 
     public void closeAllRelatedJdbcObjects() throws SQLException {
-    	Set<Long> keys = null;
-    	synchronized(_jdbcObjects) {
-    		keys = new HashSet<Long>(_jdbcObjects.keySet());
-    	}
-    	if(keys != null) {
-	    	for(Long key: keys) {
-	    		JdbcObjectHolder jdbcObject = _jdbcObjects.get(key);
-	    		// don't act on the Connection itself - this will be done elsewhere
-	    		if(jdbcObject.getJdbcInterfaceType() == JdbcInterfaceType.CONNECTION)
-	    			continue;
-	    		// create a DestroyCommand and act on it
-	    		Command destroy = new DestroyCommand(key, jdbcObject.getJdbcInterfaceType());
-	    		destroy.execute(jdbcObject.getJdbcObject(), this);
-	    	}
+    	HashMap<Long, JdbcObjectHolder> jdbcObjects = new HashMap<Long, JdbcObjectHolder>(_jdbcObjects);
+    	for (Map.Entry<Long, JdbcObjectHolder> me: jdbcObjects.entrySet()){
+    		JdbcObjectHolder jdbcObject = me.getValue();
+    		// don't act on the Connection itself - this will be done elsewhere
+    		if(jdbcObject.getJdbcInterfaceType() == JdbcInterfaceType.CONNECTION)
+    			continue;
+    		// create a DestroyCommand and act on it
+    		Command destroy = new DestroyCommand(me.getKey(), jdbcObject.getJdbcInterfaceType());
+    		destroy.execute(jdbcObject.getJdbcObject(), this);
     	}
     }
     
@@ -253,11 +248,10 @@ class ConnectionEntry implements ConnectionContext {
 
             if(_connectionConfiguration.isTraceCommandCount()) {
                 String cmdString = cmd.toString();
-                Integer oldval = _commandCountMap.get(cmdString);
-                if(oldval == null) {
-                    _commandCountMap.put(cmdString, new Integer(1));
-                } else {
-                    _commandCountMap.put(cmdString, new Integer(oldval.intValue() + 1));
+                AtomicInteger value = new AtomicInteger(1);
+                value = _commandCountMap.putIfAbsent(cmdString, value);
+                if (value!=null){
+                	value.incrementAndGet();
                 }
             }
 
@@ -316,25 +310,16 @@ class ConnectionEntry implements ConnectionContext {
         if(!_commandCountMap.isEmpty()) {
             _logger.info("  Command-Counts:");
 
-            ArrayList entries = new ArrayList(_commandCountMap.entrySet());
-            Collections.sort(entries, new Comparator() {
-                public int compare(Object o1, Object o2) {
-                    Map.Entry e1 = (Map.Entry) o1;
-                    Map.Entry e2 = (Map.Entry) o2;
-
-                    Integer v1 = (Integer) e1.getValue();
-                    Integer v2 = (Integer) e2.getValue();
-
+            ArrayList<Map.Entry<String, AtomicInteger>> entries = new ArrayList<Map.Entry<String, AtomicInteger>>(_commandCountMap.entrySet());
+            Collections.sort(entries, new Comparator<Map.Entry<String, AtomicInteger>>() {
+                public int compare(Entry<String, AtomicInteger> o1, Entry<String, AtomicInteger> o2) {
                     // Descending sort
-                    return -v1.compareTo(v2);
+                    return -Integer.valueOf(o1.getValue().intValue()).compareTo(Integer.valueOf(o2.getValue().intValue()));
                 }
             });
 
-            for(Iterator it = entries.iterator(); it.hasNext();) {
-                Map.Entry entry = (Map.Entry) it.next();
-                String cmd = (String) entry.getKey();
-                Integer count = (Integer) entry.getValue();
-                _logger.info("     " + count + " : " + cmd);
+            for (Map.Entry<String, AtomicInteger> me: entries){
+                _logger.info("     " + me.getValue().intValue() + " : " + me.getKey());
             }
         }
     }

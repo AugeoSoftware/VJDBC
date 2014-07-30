@@ -4,16 +4,20 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.serial.UIDEx;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.lang.reflect.Method;
+import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import de.simplicit.vjdbc.serial.UIDEx;
+import de.simplicit.vjdbc.server.command.ResultSetHolder;
 
 public class DestroyCommand implements Command {
     static final long serialVersionUID = 4457392123395584636L;
@@ -77,21 +81,35 @@ public class DestroyCommand implements Command {
                 _logger.debug("Removed " + target.getClass().getName() + " with UID " + _uid);
             }
             try {
-                Class targetClass = JdbcInterfaceType._interfaces[_interfaceType];
-                Method mth = targetClass.getDeclaredMethod("close", new Class[0]);
-                mth.invoke(target, (Object[])null);
-                if(_logger.isDebugEnabled()) {
-                    _logger.debug("Invoked close() successfully");
-                }
-            } catch(NoSuchMethodException e) {
-                // Object doesn't support close()
-            	if(_logger.isDebugEnabled()) {
-            		_logger.debug("close() not supported");
-            	}
-            } catch(Exception e) {
-                if(_logger.isDebugEnabled()) {
-                    _logger.debug("Invocation of close() failed", e);
-                }
+	            switch(_interfaceType){
+	            case JdbcInterfaceType.RESULTSETHOLDER:
+	            	((ResultSetHolder)target).close();
+	            	break;
+	            case JdbcInterfaceType.STATEMENT:
+	            	((Statement)target).close();
+	            	break;
+	            case JdbcInterfaceType.CONNECTION:
+	            	((Connection)target).close();
+	            	break;
+	            case JdbcInterfaceType.CALLABLESTATEMENT:
+	            	((CallableStatement)target).close();
+	            	break;
+	            case JdbcInterfaceType.DATABASEMETADATA:
+	            	_logger.debug("close() not supported for DatabaseMetaData");
+	            	break;
+	            case JdbcInterfaceType.PREPAREDSTATEMENT:
+	            	((PreparedStatement)target).close();
+	            	break;
+	            case JdbcInterfaceType.SAVEPOINT:
+	            	_logger.debug("close() not supported for Savepoint");
+	            	break;
+	            default:
+	            	_logger.debug("Unknown interfaceType: "+_interfaceType);            
+	            }
+            } catch (SQLException e){
+            	throw e;
+            } catch (Exception e){
+            	_logger.debug("Invocation of close() failed", e);
             }
         } else {
             if(_logger.isWarnEnabled()) {
