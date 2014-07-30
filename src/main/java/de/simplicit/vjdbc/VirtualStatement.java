@@ -86,7 +86,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public void close() throws SQLException {
-        _sink.process(_objectUid, new DestroyCommand(_objectUid, JdbcInterfaceType.STATEMENT));
+        _sink.processAsync(_objectUid, new DestroyCommand(_objectUid, JdbcInterfaceType.STATEMENT), false);
         _isClosed = true;
     }
 

@@ -4,13 +4,19 @@
 
 package de.simplicit.vjdbc.command;
 
-import de.simplicit.vjdbc.rmi.KeepAliveTimerTask;
-import de.simplicit.vjdbc.serial.CallingContext;
-import de.simplicit.vjdbc.serial.UIDEx;
-
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Timer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import de.simplicit.vjdbc.rmi.KeepAliveTimerTask;
+import de.simplicit.vjdbc.serial.CallingContext;
+import de.simplicit.vjdbc.serial.UIDEx;
 
 /**
  * The DecoratedCommandSink makes it easier to handle the CommandSink. It contains a number
@@ -18,11 +24,14 @@ import java.util.Timer;
  * it supports a Listener which is called before and after execution of the command.
  */
 public class DecoratedCommandSink {
-    private UIDEx _connectionUid;
-    private CommandSink _targetSink;
+    private static Log _logger = LogFactory.getLog(DecoratedCommandSink.class);
+
+    private final UIDEx _connectionUid;
+    private final CommandSink _targetSink;
     private CommandSinkListener _listener = new NullCommandSinkListener();
     private CallingContextFactory _callingContextFactory;
     private Timer _timer;
+    private final ExecutorService _executor;
 
     public DecoratedCommandSink(UIDEx connuid, CommandSink sink, CallingContextFactory ctxFactory) {
         this(connuid, sink, ctxFactory, 10000l);
@@ -40,6 +49,7 @@ public class DecoratedCommandSink {
             KeepAliveTimerTask task = new KeepAliveTimerTask(this);
             _timer.scheduleAtFixedRate(task, pingPeriod, pingPeriod);
         }
+        _executor = Executors.newSingleThreadExecutor();
     }
 
     public CommandSink getTargetSink()
@@ -53,6 +63,13 @@ public class DecoratedCommandSink {
             _timer.cancel();
             _timer = null;
         }
+        // Stop executor
+        _executor.shutdown();
+        try {
+			_executor.awaitTermination(60, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			_logger.debug("Executor service shotdown has beed interrupted", e);
+		}
         // Close down the sink
         _targetSink.close();
     }
@@ -74,142 +91,96 @@ public class DecoratedCommandSink {
     }
 
     public Object process(UIDEx reg, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
+    	try {
             CallingContext ctx = null;
             if(withCallingContext) {
                 ctx = _callingContextFactory.create();
             }
             _listener.preExecution(cmd);
-            return _targetSink.process(_connectionUid != null ? _connectionUid.getUID() : null,
-                                       reg != null ? reg.getUID() : null, cmd, ctx);
+            return _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
         } finally {
             _listener.postExecution(cmd);
         }
     }
 
+    public void processAsync(final UIDEx reg, final Command cmd, final boolean withCallingContext){
+    	Runnable task = new Runnable() {			
+			@Override
+			public void run() {
+		    	try {
+		            CallingContext ctx = null;
+		            if(withCallingContext) {
+		                ctx = _callingContextFactory.create();
+		            }
+		            _listener.preExecution(cmd);
+		            _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
+		        } catch (SQLException e) {
+		        	_logger.debug("Failed to process "+cmd.toString(), e);
+				} finally {
+		            _listener.postExecution(cmd);
+		        }		
+			}
+		};
+		_executor.execute(task);
+    }
+    
+    
     public int processWithIntResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithIntResult(uid, cmd, false);
+    	return ((Integer)process(uid, cmd, false)).intValue();
     }
 
     public int processWithIntResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Integer n = (Integer)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return n.intValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Integer)process(uid, cmd, withCallingContext)).intValue();
     }
 
     public boolean processWithBooleanResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithBooleanResult(uid, cmd, false);
+    	return ((Boolean)process(uid,cmd,false)).booleanValue();
     }
 
     public boolean processWithBooleanResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Boolean b = (Boolean)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.booleanValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Boolean)process(uid,cmd,withCallingContext)).booleanValue();
     }
 
     public byte processWithByteResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithByteResult(uid, cmd, false);
+    	return ((Byte)process(uid,cmd,false)).byteValue();
     }
 
     public byte processWithByteResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Byte b = (Byte)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.byteValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Byte)process(uid,cmd,withCallingContext)).byteValue();
     }
 
     public short processWithShortResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithShortResult(uid, cmd, false);
+    	return ((Short)process(uid,cmd,false)).shortValue();
+
     }
 
     public short processWithShortResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Short b = (Short)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.shortValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Short)process(uid,cmd,withCallingContext)).shortValue();
     }
 
     public long processWithLongResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithLongResult(uid, cmd, false);
+    	return ((Long)process(uid,cmd,false)).longValue();
+
     }
 
     public long processWithLongResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Long b = (Long)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.longValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Long)process(uid,cmd,withCallingContext)).longValue();
     }
 
     public float processWithFloatResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithFloatResult(uid, cmd, false);
+    	return ((Float)process(uid,cmd,false)).floatValue();
+
     }
 
     public float processWithFloatResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Float b = (Float)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.floatValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Float)process(uid,cmd,withCallingContext)).floatValue();
     }
 
     public double processWithDoubleResult(UIDEx uid, Command cmd) throws SQLException {
-        return processWithDoubleResult(uid, cmd, false);
+    	return ((Double)process(uid,cmd,false)).doubleValue();
     }
 
     public double processWithDoubleResult(UIDEx uid, Command cmd, boolean withCallingContext) throws SQLException {
-        try {
-            CallingContext ctx = null;
-            if(withCallingContext) {
-                ctx = _callingContextFactory.create();
-            }
-            _listener.preExecution(cmd);
-            Double b = (Double)_targetSink.process(_connectionUid.getUID(), uid.getUID(), cmd, ctx);
-            return b.doubleValue();
-        } finally {
-            _listener.postExecution(cmd);
-        }
+    	return ((Double)process(uid,cmd,withCallingContext)).doubleValue();
     }
 }

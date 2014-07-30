@@ -17,8 +17,8 @@ import de.simplicit.vjdbc.util.SQLExceptionHelper;
  *
  */
 public abstract class AbstractServletCommandSinkClient implements CommandSink {
-    protected URL _url;
-    protected RequestEnhancer _requestEnhancer;
+    protected final URL _url;
+    protected final RequestEnhancer _requestEnhancer;
 
     public AbstractServletCommandSinkClient(String url, RequestEnhancer requestEnhancer) throws SQLException {
         try {

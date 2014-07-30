@@ -34,16 +34,13 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
     
 	private static final String PROTOCOL_VERSION = Version.version+PROTOCOL_KRYO;
 	
-	private final Kryo kryo;
-	
 	public KryoServletCommandSinkJdkHttpClient(String url, RequestEnhancer requestEnhancer) throws SQLException {
         super(url, requestEnhancer);
-        kryo = KryoFactory.getInstance().getKryo(); 
     }
 
     public UIDEx connect(String database, Properties props, Properties clientInfo, CallingContext ctx) throws SQLException {
         HttpURLConnection conn = null;
-
+        Kryo kryo = null;
         Input input = null;
         Output output = null;
         try {
@@ -65,6 +62,7 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
 
             
             // Write the parameter objects to the ObjectOutputStream
+            kryo = KryoFactory.getInstance().getKryo();
             output = new DeflatingOutput(conn.getOutputStream());
             kryo.writeObject(output, database);
             kryo.writeObject(output, props);
@@ -110,11 +108,15 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             if(conn != null) {
                 conn.disconnect();
             }
+            if (kryo!=null){
+            	KryoFactory.getInstance().releaseKryo(kryo);
+            }
         }
     }
 
     public Object process(Long connuid, Long uid, Command cmd, CallingContext ctx) throws SQLException {
         HttpURLConnection conn = null;
+        Kryo kryo = null;
         Input input = null;
         Output output = null;
         
@@ -130,6 +132,7 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
                 _requestEnhancer.enhanceProcessRequest(new KryoRequestModifier(conn));
             }
             conn.connect();
+            kryo = KryoFactory.getInstance().getKryo();
             output = new DeflatingOutput(conn.getOutputStream());
             kryo.writeObjectOrNull(output, connuid, Long.class);
             kryo.writeObjectOrNull(output, uid, Long.class);
@@ -157,15 +160,10 @@ public class KryoServletCommandSinkJdkHttpClient extends AbstractServletCommandS
             if(conn != null) {
                 conn.disconnect();
             }
+            
+            if (kryo!=null){
+            	KryoFactory.getInstance().releaseKryo(kryo);
+            }
         }
     }
-
-	@Override
-	public void close() {
-		KryoFactory.getInstance().releaseKryo(kryo);
-		super.close();		
-	}
-    
-    
-    
 }

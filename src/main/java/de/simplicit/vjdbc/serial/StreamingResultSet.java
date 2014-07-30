@@ -178,7 +178,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
             // we have to check here if it is such a server object because in this case we don't have to try the remote
             // call which indeed causes a NPE.
             if(_commandSink != null) {
-                _commandSink.process(_remainingResultSet, new DestroyCommand(_remainingResultSet, JdbcInterfaceType.RESULTSETHOLDER));
+                _commandSink.processAsync(_remainingResultSet, new DestroyCommand(_remainingResultSet, JdbcInterfaceType.RESULTSETHOLDER), false);
             }
             _remainingResultSet = null;
         }
