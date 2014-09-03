@@ -29,7 +29,7 @@ public class SQLExceptionHelper {
     	if (ex==null || 
     			// some driver may extend SQLException, but the client JRE may not have this class
     			// filter out such classes
-    			("java.sql".equals(ex.getClass().getPackage().getName()) && 
+    			(ex.getClass().getName().startsWith("java.sql.") &&
     					isSQLExceptionSerializable(ex))) {
             // yes a bit misleading but since this exception is already OK
             // for transport, its much simpler just to return it
