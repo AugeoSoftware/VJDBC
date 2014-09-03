@@ -12,7 +12,10 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 
 public class ClientInfo {
-    private static Log _logger = LogFactory.getLog(ClientInfo.class);
+    public static final String VJDBC_CLIENT_NAME = "vjdbc-client.name";
+	public static final String VJDBC_CLIENT_ADDRESS = "vjdbc-client.address";
+	
+	private static Log _logger = LogFactory.getLog(ClientInfo.class);
     private static Properties _properties = null;
 
     public static Properties getProperties(String propertiesToTransfer) {
@@ -23,8 +26,8 @@ public class ClientInfo {
             try {
                 // Deliver local host information
                 InetAddress iadr = InetAddress.getLocalHost();
-                _properties.put("vjdbc-client.address", iadr.getHostAddress());
-                _properties.put("vjdbc-client.name", iadr.getHostName());
+                _properties.put(VJDBC_CLIENT_ADDRESS, iadr.getHostAddress());
+                _properties.put(VJDBC_CLIENT_NAME, iadr.getHostName());
 
                 // Split the passed string into pieces and put all system properties
                 // into the Properties object

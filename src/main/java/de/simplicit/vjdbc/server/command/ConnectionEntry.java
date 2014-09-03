@@ -31,6 +31,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import de.simplicit.vjdbc.ProxiedObject;
+import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.command.DestroyCommand;
@@ -42,22 +43,31 @@ import de.simplicit.vjdbc.serial.SerialDatabaseMetaData;
 import de.simplicit.vjdbc.serial.SerialResultSetMetaData;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
+import de.simplicit.vjdbc.server.config.ConfigurationException;
 import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
 import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
+import de.simplicit.vjdbc.util.ClientInfo;
+import de.simplicit.vjdbc.util.PerformanceConfig;
 
 class ConnectionEntry implements ConnectionContext {
     private static Log _logger = LogFactory.getLog(ConnectionEntry.class);
 
     // Unique identifier for the ConnectionEntry
-    private Long _uid;
+    private final Long _uid;
     // The real JDBC-Connection
-    private Connection _connection;
+    private final Connection _connection;
     // Configuration information
-    private ConnectionConfiguration _connectionConfiguration;
+    private final ConnectionConfiguration _connectionConfiguration;
     // Properties delivered from the client
     private Properties _clientInfo;
     // Flag that signals the activity of this connection
-    private boolean _active = false;
+    private volatile boolean _active = false;
+    // data compression mode [0..9] for this connection
+    private volatile int _compressionMode;
+    // data compression threshold [0..4000] for this connection
+    private volatile int _compressionThreshold;
+    // row packet size for this connection
+    private volatile int _rowPacketSize;
 
     // Statistics
     private long _lastAccessTimestamp = System.currentTimeMillis();
@@ -74,6 +84,10 @@ class ConnectionEntry implements ConnectionContext {
         _connectionConfiguration = config;
         _clientInfo = clientInfo;
         _uid = connuid;
+        _compressionMode = _connectionConfiguration.getCompressionModeAsInt();
+        _compressionThreshold = _connectionConfiguration.getCompressionThreshold();
+        _rowPacketSize = _connectionConfiguration.getRowPacketSize();
+        
         // Put the connection into the JDBC-Object map
         _jdbcObjects.put(connuid, new JdbcObjectHolder(conn, ctx, JdbcInterfaceType.CONNECTION));
     }
@@ -117,6 +131,42 @@ class ConnectionEntry implements ConnectionContext {
 
     public void setClientInfo(String name, String value){
     	_clientInfo.setProperty(name, value);
+    	if (VJdbcProperties.PERFORMANCE_PROFILE.equals(name)){
+    		try {
+				int performanceProfile = Integer.parseInt(value);
+				_compressionMode = PerformanceConfig.getCompressionMode(performanceProfile);
+				_compressionThreshold = PerformanceConfig.getCompressionThreshold(performanceProfile);
+				_rowPacketSize = PerformanceConfig.getRowPacketSize(performanceProfile);
+    		} catch (NumberFormatException e) {
+				_logger.debug("Ignoring invalid number format for performance profile from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
+    		} catch (ConfigurationException e) {
+    			_logger.debug("Ignoring invalid performance profile from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
+    		}
+    	} else 
+    		
+    	if (VJdbcProperties.COMPRESSION_MODE.equals(name)){
+    		try {
+				_compressionMode = PerformanceConfig.parseCompressionMode(value);
+			} catch (ConfigurationException e) {
+				_logger.debug("Ignoring invalid compression mode from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
+			}
+    	} else 
+    		
+   		if (VJdbcProperties.COMPRESSION_THRESHOLD.equals(name)){
+    		try {
+				_compressionThreshold = PerformanceConfig.parseCompressionThreshold(value);
+			} catch (ConfigurationException e) {
+				_logger.debug("Ignoring invalid compression threshold from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
+			}   			
+   		} else 
+   			
+    	if (VJdbcProperties.ROW_PACKET_SIZE.equals(name)){
+    		try {
+				_rowPacketSize = PerformanceConfig.parseRowPacketSize(value);
+			} catch (ConfigurationException e) {
+				_logger.debug("Ignoring invalid row packet size from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
+			}
+    	}
     }
     
     public boolean isActive() {
@@ -155,15 +205,15 @@ class ConnectionEntry implements ConnectionContext {
     }
 
     public int getCompressionMode() {
-        return _connectionConfiguration.getCompressionModeAsInt();
+        return _compressionMode;
     }
 
     public int getCompressionThreshold() {
-        return _connectionConfiguration.getCompressionThreshold();
+        return _compressionThreshold;
     }
 
     public int getRowPacketSize() {
-        return _connectionConfiguration.getRowPacketSize();
+        return _rowPacketSize;
     }
 
     public String getCharset() {
@@ -288,8 +338,8 @@ class ConnectionEntry implements ConnectionContext {
     
     public void traceConnectionStatistics() {
         _logger.info("  Connection ........... " + _connectionConfiguration.getId());
-        _logger.info("  IP address ........... " + _clientInfo.getProperty("vjdbc-client.address", "n.a."));
-        _logger.info("  Host name ............ " + _clientInfo.getProperty("vjdbc-client.name", "n.a."));
+        _logger.info("  IP address ........... " + _clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS, "n.a."));
+        _logger.info("  Host name ............ " + _clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_NAME, "n.a."));
         dumpClientInfoProperties();
         _logger.info("  Last time of access .. " + new Date(_lastAccessTimestamp));
         _logger.info("  Processed commands ... " + _numberOfProcessedCommands);
@@ -327,7 +377,7 @@ class ConnectionEntry implements ConnectionContext {
     private Object handleResultSet(ResultSet result, boolean forwardOnly, CallingContext ctx) throws SQLException {
         // Populate a StreamingResultSet
         StreamingResultSet srs = new StreamingResultSet(
-                _connectionConfiguration.getRowPacketSize(),
+                _rowPacketSize,
                 forwardOnly,
                 _connectionConfiguration.isPrefetchResultSetMetaData(),
                 _connectionConfiguration.getCharset());
@@ -337,7 +387,7 @@ class ConnectionEntry implements ConnectionContext {
         // Remember the ResultSet and put the UID in the StreamingResultSet
         UIDEx uid = new UIDEx();
         srs.setRemainingResultSetUID(uid);
-        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, metaData, _connectionConfiguration, lastPartReached), ctx, JdbcInterfaceType.RESULTSETHOLDER));
+        _jdbcObjects.put(uid.getUID(), new JdbcObjectHolder(new ResultSetHolder(result, metaData, _connectionConfiguration, _rowPacketSize, lastPartReached), ctx, JdbcInterfaceType.RESULTSETHOLDER));
         if(_logger.isDebugEnabled()) {
             _logger.debug("Registered ResultSet with UID " + uid.getUID());
         }

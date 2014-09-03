@@ -24,4 +24,9 @@ public final class VJdbcProperties {
     public static final String SERVLET_REQUEST_ENHANCER_FACTORY = "vjdbc.servlet.request_enhancer_factory";
     
     public static final String USER_NAME = "vjdbc.user.name";
+    
+    public static final String COMPRESSION_MODE = "vjdbc.compression.mode";
+    public static final String COMPRESSION_THRESHOLD = "vjdbc.compression.threshold";
+    public static final String ROW_PACKET_SIZE = "vjdbc.row.packet.size";
+    public static final String PERFORMANCE_PROFILE = "vjdbc.performance.profile";
 }

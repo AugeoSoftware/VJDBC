@@ -229,7 +229,9 @@ public class KryoServletCommandSink extends HttpServlet {
                 // Write the result in the response buffer
                 kryo.writeClassAndObject(output, objectToReturn);
                 output.flush();
-
+                StreamCloser.close(output);
+                output = null;
+                
                 httpServletResponse.flushBuffer();
             } else {
             	// No VJDBC-Method ? 

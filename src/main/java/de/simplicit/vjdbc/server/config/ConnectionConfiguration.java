@@ -28,6 +28,7 @@ import de.simplicit.vjdbc.VJdbcException;
 import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.server.DataSourceProvider;
 import de.simplicit.vjdbc.server.LoginHandler;
+import de.simplicit.vjdbc.util.PerformanceConfig;
 
 public class ConnectionConfiguration implements Executor {
     public static final int DEFAULT_COMPRESSION_THRESHOLD = 1500;
@@ -207,10 +208,7 @@ public class ConnectionConfiguration implements Executor {
     }
 
     public void setCompressionModeAsInt(int compressionMode) throws ConfigurationException {
-    	if (compressionMode<Deflater.NO_COMPRESSION || compressionMode>Deflater.BEST_COMPRESSION){
-    		throw new ConfigurationException("Unknown compression mode: "+compressionMode);
-    	}
-    	_compressionMode = compressionMode;
+    	_compressionMode = PerformanceConfig.validateCompressionMode(compressionMode);
     }
 
     public String getCompressionMode() {
@@ -227,16 +225,7 @@ public class ConnectionConfiguration implements Executor {
     }
 
     public void setCompressionMode(String compressionMode) throws ConfigurationException {
-        if(compressionMode.equalsIgnoreCase("bestspeed")) {
-            _compressionMode = Deflater.BEST_SPEED;
-        } else if(compressionMode.equalsIgnoreCase("bestcompression")) {
-            _compressionMode = Deflater.BEST_COMPRESSION;
-        } else if(compressionMode.equalsIgnoreCase("none")) {
-            _compressionMode = Deflater.NO_COMPRESSION;
-        } else {
-            throw new ConfigurationException("Unknown compression mode '" + compressionMode
-                    + "', use either bestspeed, bestcompression or none");
-        }
+		_compressionMode = PerformanceConfig.parseCompressionMode(compressionMode);
     }
 
     public int getCompressionThreshold() {
@@ -244,10 +233,7 @@ public class ConnectionConfiguration implements Executor {
     }
 
     public void setCompressionThreshold(int compressionThreshold) throws ConfigurationException {
-        if(_compressionThreshold < 0) {
-            throw new ConfigurationException("Compression threshold must be >= 0");
-        }
-        _compressionThreshold = compressionThreshold;
+    	_compressionThreshold = PerformanceConfig.validateCompressionThreshold(compressionThreshold);
     }
 
     public boolean useConnectionPooling() {

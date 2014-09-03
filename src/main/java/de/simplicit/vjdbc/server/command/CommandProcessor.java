@@ -32,6 +32,7 @@ import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.server.config.ConnectionConfiguration;
 import de.simplicit.vjdbc.server.config.OcctConfiguration;
 import de.simplicit.vjdbc.server.config.VJdbcConfiguration;
+import de.simplicit.vjdbc.util.PerformanceConfig;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 
 /**
@@ -122,7 +123,8 @@ public class CommandProcessor {
         // To optimize the communication we can tell the client if
         // calling-contexts should be delivered at all
         Long connid = new Long(s_connectionId.getAndIncrement());
-        UIDEx reg = new UIDEx(connid, config.isTraceOrphanedObjects() ? 1 : 0);
+        int performanceProfile = PerformanceConfig.getPerformanceProfile(config.getCompressionModeAsInt(), config.getCompressionThreshold(), config.getRowPacketSize());
+        UIDEx reg = new UIDEx(connid, config.isTraceOrphanedObjects() ? 1 : 0, performanceProfile);
         _connectionEntries.put(connid, new ConnectionEntry(connid, conn, config, clientInfo, ctx));
         return reg;
     }

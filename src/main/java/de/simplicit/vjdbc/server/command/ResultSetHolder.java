@@ -31,13 +31,15 @@ public class ResultSetHolder {
     private final ResultSetMetaData _metaData;
     private RowPacket _currentSerializedRowPacket;
     private final ConnectionConfiguration _connectionConfiguration;
-    private boolean _lastPartReached;
+    private volatile boolean _lastPartReached;
+    private final int _rowPacketSize;
     private SQLException _lastOccurredException = null;
 
-    ResultSetHolder(ResultSet resultSet, ResultSetMetaData metaData, ConnectionConfiguration config, boolean lastPartReached) throws SQLException {
+    ResultSetHolder(ResultSet resultSet, ResultSetMetaData metaData, ConnectionConfiguration config, int rowPacketSize, boolean lastPartReached) throws SQLException {
         _resultSet = resultSet;
         _metaData = metaData;
         _connectionConfiguration = config;
+        _rowPacketSize = rowPacketSize;
         _lastPartReached = lastPartReached;
         if(!_lastPartReached) {
             synchronized(_lock) {
@@ -102,7 +104,7 @@ public class ResultSetHolder {
                                 // When the ResultSet is null here, the client closed the ResultSet concurrently right
                                 // after the upper check "_resultSet != null".
                                 if(_resultSet != null) {
-                                    RowPacket rowPacket = new RowPacket(_connectionConfiguration.getRowPacketSize()/*, false*/, packetIndex);
+                                    RowPacket rowPacket = new RowPacket(_rowPacketSize/*, false*/, packetIndex);
                                     packetIndex++;
                                     // Populate the new RowPacket using the ResultSet
                                     _lastPartReached = rowPacket.populate(_resultSet, _metaData);
