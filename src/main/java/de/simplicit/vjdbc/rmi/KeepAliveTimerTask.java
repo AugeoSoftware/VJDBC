@@ -19,8 +19,8 @@ import java.util.TimerTask;
  */
 public class KeepAliveTimerTask extends TimerTask implements CommandSinkListener {
     private static Command _dummyCommand = PingCommand.INSTANCE;
-    private DecoratedCommandSink _sink;
-    private boolean _ignoreNextPing = false;
+    private final DecoratedCommandSink _sink;
+    private volatile boolean _ignoreNextPing = false;
 
     public KeepAliveTimerTask(DecoratedCommandSink sink) {
         _sink = sink;

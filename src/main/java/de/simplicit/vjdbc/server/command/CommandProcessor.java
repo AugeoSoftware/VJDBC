@@ -10,11 +10,11 @@ import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,7 +25,6 @@ import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.command.DestroyCommand;
-import de.simplicit.vjdbc.command.JdbcInterfaceType;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
@@ -44,7 +43,6 @@ public class CommandProcessor {
     private static CommandProcessor _singleton;
 
     private static boolean closeConnectionsOnKill = true;
-    private static AtomicLong s_connectionId = new AtomicLong(1L);
     private Timer _timer = null;
     private Map<Long, ConnectionEntry> _connectionEntries = new ConcurrentHashMap<Long, ConnectionEntry>();
     private OcctConfiguration _occtConfig;
@@ -122,10 +120,9 @@ public class CommandProcessor {
     public UIDEx registerConnection(Connection conn, ConnectionConfiguration config, Properties clientInfo, CallingContext ctx) {
         // To optimize the communication we can tell the client if
         // calling-contexts should be delivered at all
-        Long connid = new Long(s_connectionId.getAndIncrement());
         int performanceProfile = PerformanceConfig.getPerformanceProfile(config.getCompressionModeAsInt(), config.getCompressionThreshold(), config.getRowPacketSize());
-        UIDEx reg = new UIDEx(connid, config.isTraceOrphanedObjects() ? 1 : 0, performanceProfile);
-        _connectionEntries.put(connid, new ConnectionEntry(connid, conn, config, clientInfo, ctx));
+        UIDEx reg = new UIDEx(config.isTraceOrphanedObjects() ? 1 : 0, performanceProfile);
+        _connectionEntries.put(reg.getUID(), new ConnectionEntry(reg.getUID(), conn, config, clientInfo, ctx));
         return reg;
     }
 
@@ -249,16 +246,18 @@ public class CommandProcessor {
     	if (userName!=null){
     		_logger.debug("Killing connections for user "+userName);
 //    		synchronized(_connectionEntries){
-    			for (Map.Entry<Long, ConnectionEntry>me: _connectionEntries.entrySet()){
+    			Iterator<Entry<Long, ConnectionEntry>> it = _connectionEntries.entrySet().iterator();
+    			while (it.hasNext()){
+    				Entry<Long, ConnectionEntry> me = it.next();
     				ConnectionEntry ce = me.getValue();
     				synchronized(ce){
     					if (ce!=connectionEntry 
     							&& userName.equals(ce.getClientInfo().getProperty(VJdbcProperties.USER_NAME))){
     						
     						try {
-    							DestroyCommand destroyCommand = new DestroyCommand(me.getKey(), JdbcInterfaceType.CONNECTION);
-    							destroyCommand.execute(ce.getJDBCObject(me.getKey()), ce);
-    							killedConnectionsCount++;
+    							DestroyCommand.INSTANCE.execute(ce.getJDBCObject(me.getKey()), ce);
+    							it.remove();
+    							killedConnectionsCount++;						
 							} catch (SQLException e) {
 								_logger.info("Error on killing connection "+me.getKey(), e);
 							}

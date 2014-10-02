@@ -47,7 +47,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public Statement createStatement() throws SQLException {
-    	Object result = _sink.process(_objectUid, ConnectionCreateStatementCommand.INSTANCE);
+    	Object result = _sink.queue(_objectUid, ConnectionCreateStatementCommand.INSTANCE, true);
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
             return new VirtualStatement(reg, this, _sink, ResultSet.TYPE_FORWARD_ONLY);
@@ -78,7 +78,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
         }
 
         if(pstmt == null) {
-            Object result = _sink.process(_objectUid, new ConnectionPrepareStatementCommand(sql), true);
+            Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementCommand(sql), true);
 
             if (result instanceof UIDEx) {
                 UIDEx reg = (UIDEx)result;
@@ -92,7 +92,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public CallableStatement prepareCall(String sql) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareCallCommand(sql), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareCallCommand(sql), true);
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
             return new VirtualCallableStatement(reg, this, sql, _sink, ResultSet.TYPE_FORWARD_ONLY);
@@ -131,10 +131,10 @@ public class VirtualConnection extends VirtualBase implements Connection {
     public void close() throws SQLException {
         if(_databaseMetaData != null && _databaseMetaData instanceof VirtualDatabaseMetaData) {
             UIDEx metadataId = ((VirtualDatabaseMetaData)_databaseMetaData)._objectUid;
-            _sink.process(metadataId, new DestroyCommand(metadataId, JdbcInterfaceType.DATABASEMETADATA));
+            _sink.process(metadataId,  DestroyCommand.INSTANCE); //(metadataId, JdbcInterfaceType.DATABASEMETADATA));
             _databaseMetaData = null;
         }
-        _sink.process(_objectUid, new DestroyCommand(_objectUid, JdbcInterfaceType.CONNECTION));
+        _sink.process(_objectUid, DestroyCommand.INSTANCE); // (_objectUid, JdbcInterfaceType.CONNECTION));
         _sink.close();
         _isClosed = true;
     }
@@ -213,7 +213,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-        Object result = _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "createStatement",
+        Object result = _sink.queue(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "createStatement",
                 new Object[]{new Integer(resultSetType), new Integer(resultSetConcurrency)},
                 ParameterTypeCombinations.INTINT), true);
 
@@ -227,7 +227,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     public PreparedStatement prepareStatement(String sql, int resultSetType,
                                               int resultSetConcurrency)
             throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareStatementCommand(sql, resultSetType, resultSetConcurrency), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementCommand(sql, resultSetType, resultSetConcurrency), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -238,7 +238,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public CallableStatement prepareCall(String sql, int resultSetType,
                                          int resultSetConcurrency) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareCallCommand(sql, resultSetType, resultSetConcurrency), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareCallCommand(sql, resultSetType, resultSetConcurrency), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -291,7 +291,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public Statement createStatement(int resultSetType, int resultSetConcurrency,
                                      int resultSetHoldability) throws SQLException {
-        Object result = _sink.process(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "createStatement",
+        Object result = _sink.queue(_objectUid, CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "createStatement",
                 new Object[]{new Integer(resultSetType),
                              new Integer(resultSetConcurrency),
                              new Integer(resultSetHoldability)},
@@ -305,7 +305,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
 
     public PreparedStatement prepareStatement(String sql, int resultSetType,
                                               int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareStatementCommand(sql, resultSetType, resultSetConcurrency, resultSetHoldability), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementCommand(sql, resultSetType, resultSetConcurrency, resultSetHoldability), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -317,7 +317,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     public CallableStatement prepareCall(String sql, int resultSetType,
                                          int resultSetConcurrency,
                                          int resultSetHoldability) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareCallCommand(sql, resultSetType, resultSetConcurrency, resultSetHoldability), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareCallCommand(sql, resultSetType, resultSetConcurrency, resultSetHoldability), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -327,7 +327,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, autoGeneratedKeys), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, autoGeneratedKeys), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -337,7 +337,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public PreparedStatement prepareStatement(String sql, int columnIndexes[]) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, columnIndexes), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, columnIndexes), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;
@@ -347,7 +347,7 @@ public class VirtualConnection extends VirtualBase implements Connection {
     }
 
     public PreparedStatement prepareStatement(String sql, String columnNames[]) throws SQLException {
-        Object result = _sink.process(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, columnNames), true);
+        Object result = _sink.queue(_objectUid, new ConnectionPrepareStatementExtendedCommand(sql, columnNames), true);
 
         if (result instanceof UIDEx) {
             UIDEx reg = (UIDEx)result;

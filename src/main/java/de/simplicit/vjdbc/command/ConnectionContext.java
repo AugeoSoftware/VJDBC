@@ -7,6 +7,8 @@ package de.simplicit.vjdbc.command;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import de.simplicit.vjdbc.serial.CallingContext;
+
 /**
  * This interface provides access to connection specific context for all commands
  * executed on the server.
@@ -30,4 +32,6 @@ public interface ConnectionContext {
     Properties getClientInfo();
     // set client info 
     void setClientInfo(String name, String value);
+    // execute command
+    public Object executeCommand(Long uid, Command cmd, CallingContext ctx) throws SQLException;
 }

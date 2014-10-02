@@ -109,16 +109,15 @@ class ConnectionEntry implements ConnectionContext {
     }
 
     public void closeAllRelatedJdbcObjects() throws SQLException {
-    	HashMap<Long, JdbcObjectHolder> jdbcObjects = new HashMap<Long, JdbcObjectHolder>(_jdbcObjects);
-    	for (Map.Entry<Long, JdbcObjectHolder> me: jdbcObjects.entrySet()){
+    	for (Map.Entry<Long, JdbcObjectHolder> me: _jdbcObjects.entrySet()){
     		JdbcObjectHolder jdbcObject = me.getValue();
     		// don't act on the Connection itself - this will be done elsewhere
     		if(jdbcObject.getJdbcInterfaceType() == JdbcInterfaceType.CONNECTION)
     			continue;
     		// create a DestroyCommand and act on it
-    		Command destroy = new DestroyCommand(me.getKey(), jdbcObject.getJdbcInterfaceType());
-    		destroy.execute(jdbcObject.getJdbcObject(), this);
+    		DestroyCommand.INSTANCE.execute(jdbcObject.getJdbcObject(), this);
     	}
+    	_jdbcObjects.clear();    	
     }
     
     boolean hasJdbcObjects() {
@@ -241,7 +240,7 @@ class ConnectionEntry implements ConnectionContext {
             // Some target object ?
             if(uid != null) {
                 // ... get it
-                JdbcObjectHolder target = _jdbcObjects.get(uid);
+            	JdbcObjectHolder target = (cmd instanceof DestroyCommand)?_jdbcObjects.remove(uid):_jdbcObjects.get(uid);
 
                 if(target != null) {
                     if(_logger.isDebugEnabled()) {

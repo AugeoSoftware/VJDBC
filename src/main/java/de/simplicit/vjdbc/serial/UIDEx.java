@@ -8,13 +8,16 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class UIDEx implements Externalizable {
     static final long serialVersionUID = 1682984916549281270L;
 
-    private static long s_cookie = 1;
-    
-    private Long _uid = new Long(s_cookie++);
+    private static AtomicLong s_cookie = new AtomicLong(1L);
+    /**
+     * negative values are reserved for usage in CompositeCommand
+     */
+    private Long _uid = new Long(s_cookie.getAndIncrement() & 0x7FFFFFFFFFFFFFFFL);
     private int _value1 = Integer.MIN_VALUE;
     private int _value2 = Integer.MIN_VALUE;
 
@@ -30,13 +33,13 @@ public class UIDEx implements Externalizable {
         _value2 = value2;
     }
 
-    public UIDEx(Long uid, int value1) {
-        _uid = uid;
-        _value1 = value1;
-    }
+//    public UIDEx(Long uid, int value1) {
+//        _uid = uid;
+//        _value1 = value1;
+//    }
 
     public UIDEx(Long uid, int value1, int value2) {
-        _uid = uid;
+    	_uid = uid;
         _value1 = value1;
         _value2 = value2;
     }
@@ -69,6 +72,17 @@ public class UIDEx implements Externalizable {
     public String toString() {
         return _uid.toString();
     }
+    /**
+     * copy all info from given instance
+     * @param reg
+     */
+    public void copyFrom(UIDEx reg){
+    	assert this._uid<0 : "Changing valid UIDEx is prohibited"; 
+    	this._uid = reg._uid;
+    	this._value1 = reg._value1;
+    	this._value2 = reg._value2;
+    }
+    
     
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeLong(_uid.longValue());

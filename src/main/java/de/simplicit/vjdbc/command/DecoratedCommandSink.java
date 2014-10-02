@@ -17,6 +17,7 @@ import org.apache.commons.logging.LogFactory;
 import de.simplicit.vjdbc.rmi.KeepAliveTimerTask;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
+import de.simplicit.vjdbc.server.command.CompositeCommand;
 
 /**
  * The DecoratedCommandSink makes it easier to handle the CommandSink. It contains a number
@@ -31,7 +32,8 @@ public class DecoratedCommandSink {
     private CommandSinkListener _listener = new NullCommandSinkListener();
     private CallingContextFactory _callingContextFactory;
     private Timer _timer;
-    private final ExecutorService _executor;
+//    private final ExecutorService _executor;
+    private ThreadLocal<CompositeCommand> _compositeCommand = new ThreadLocal<CompositeCommand>();
 
     public DecoratedCommandSink(UIDEx connuid, CommandSink sink, CallingContextFactory ctxFactory) {
         this(connuid, sink, ctxFactory, 10000l);
@@ -49,7 +51,7 @@ public class DecoratedCommandSink {
             KeepAliveTimerTask task = new KeepAliveTimerTask(this);
             _timer.scheduleAtFixedRate(task, pingPeriod, pingPeriod);
         }
-        _executor = Executors.newSingleThreadExecutor();
+//        _executor = Executors.newSingleThreadExecutor();
     }
 
     public CommandSink getTargetSink()
@@ -63,13 +65,13 @@ public class DecoratedCommandSink {
             _timer.cancel();
             _timer = null;
         }
-        // Stop executor
-        _executor.shutdown();
-        try {
-			_executor.awaitTermination(60, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			_logger.debug("Executor service shotdown has beed interrupted", e);
-		}
+//        // Stop executor
+//        _executor.shutdown();
+//        try {
+//			_executor.awaitTermination(60, TimeUnit.SECONDS);
+//		} catch (InterruptedException e) {
+//			_logger.debug("Executor service shotdown has beed interrupted", e);
+//		}
         // Close down the sink
         _targetSink.close();
     }
@@ -96,32 +98,32 @@ public class DecoratedCommandSink {
             if(withCallingContext) {
                 ctx = _callingContextFactory.create();
             }
+            CompositeCommand compositeCommand = _compositeCommand.get();
+            if (compositeCommand!=null){
+            	compositeCommand.add(reg, cmd);
+            	cmd = compositeCommand;
+            	reg = null;
+            }
             _listener.preExecution(cmd);
-            return _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
+            Object result = _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
+            if (compositeCommand!=null){
+            	compositeCommand.updateResultUIDEx((Object[]) result);
+            	result = ((Object[]) result)[compositeCommand.size()-1];
+            	_compositeCommand.set(null);
+            }
+			return result;
         } finally {
             _listener.postExecution(cmd);
         }
     }
 
-    public void processAsync(final UIDEx reg, final Command cmd, final boolean withCallingContext){
-    	Runnable task = new Runnable() {			
-			@Override
-			public void run() {
-		    	try {
-		            CallingContext ctx = null;
-		            if(withCallingContext) {
-		                ctx = _callingContextFactory.create();
-		            }
-		            _listener.preExecution(cmd);
-		            _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
-		        } catch (SQLException e) {
-		        	_logger.debug("Failed to process "+cmd.toString(), e);
-				} finally {
-		            _listener.postExecution(cmd);
-		        }		
-			}
-		};
-		_executor.execute(task);
+    public UIDEx queue(final UIDEx reg, final Command cmd, final boolean withCallingContext){
+    	CompositeCommand compositeCommand = _compositeCommand.get();
+    	if (compositeCommand==null){
+    		compositeCommand = new CompositeCommand();
+    		_compositeCommand.set(compositeCommand);
+    	}
+    	return compositeCommand.add(reg, cmd);
     }
     
     

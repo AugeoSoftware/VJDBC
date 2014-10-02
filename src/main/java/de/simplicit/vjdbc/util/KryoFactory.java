@@ -189,6 +189,8 @@ import de.simplicit.vjdbc.serial.ShortColumnValuesSerializer;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
 import de.simplicit.vjdbc.serial.UIDExSerializer;
+import de.simplicit.vjdbc.server.command.CompositeCommand;
+import de.simplicit.vjdbc.server.command.CompositeCommandSerializer;
 
 public class KryoFactory {
 	
@@ -241,6 +243,8 @@ public class KryoFactory {
 	private static final StatementSetFetchSizeCommandSerializer STATEMENT_SET_FETCH_SIZE_COMMAND_SERIALIZER = new StatementSetFetchSizeCommandSerializer();
 	private static final PreparedStatementUpdateCommandSerializer PREPARED_STATEMENT_UPDATE_COMMAND_SERIALIZER = new PreparedStatementUpdateCommandSerializer();
 	private static final StatementUpdateCommandSerializer STATEMENT_UPDATE_COMMAND_SERIALIZER = new StatementUpdateCommandSerializer();
+	
+	private static final CompositeCommandSerializer COMPOSITE_COMMAND_SERIALIZER = new CompositeCommandSerializer();
 	
 	private static final BooleanColumnValuesSerializer BOOLEAN_COLUMN_VALUES_SERIALIZER = new BooleanColumnValuesSerializer();
 	private static final ByteColumnValuesSerializer BYTE_COLUMN_VALUES_SERIALIZER = new ByteColumnValuesSerializer();
@@ -419,6 +423,7 @@ public class KryoFactory {
 		kryo.register(ConnectionSetAutoCommitCommand.class);
 		kryo.register(DatabaseMetaDataGetDriverNameCommand.class);
 		kryo.register(StatementSetFetchSizeCommand.class, STATEMENT_SET_FETCH_SIZE_COMMAND_SERIALIZER);
+		kryo.register(CompositeCommand.class, COMPOSITE_COMMAND_SERIALIZER);
 		
 		// Parameters
 		kryo.register(ArrayParameter.class, ARRAY_PARAMETER_SERIALIZER);

@@ -86,7 +86,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public void close() throws SQLException {
-        _sink.processAsync(_objectUid, new DestroyCommand(_objectUid, JdbcInterfaceType.STATEMENT), false);
+        _sink.queue(_objectUid, DestroyCommand.INSTANCE, true);
         _isClosed = true;
     }
 
@@ -201,7 +201,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public void setFetchSize(int rows) throws SQLException {
-    	_sink.process(_objectUid, new StatementSetFetchSizeCommand(rows));
+    	_sink.queue(_objectUid, new StatementSetFetchSizeCommand(rows), true);
     }
 
     public int getFetchSize() throws SQLException {
