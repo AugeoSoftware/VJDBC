@@ -162,7 +162,8 @@ public class KryoServletCommandSink extends HttpServlet {
         try {
             // Get the method to execute
             String method = httpServletRequest.getHeader(V2_METHOD_IDENTIFIER);
-
+            Thread.sleep(10L);
+            
             if(method != null) {
             	// check the version
             	String clientVersion = httpServletRequest.getHeader(VERSION_IDENTIFIER);

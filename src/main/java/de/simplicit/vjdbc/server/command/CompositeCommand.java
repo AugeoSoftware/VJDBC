@@ -8,6 +8,7 @@ import java.sql.SQLException;
 
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
+import de.simplicit.vjdbc.command.DestroyCommand;
 import de.simplicit.vjdbc.serial.UIDEx;
 /**
  * CompositeCommand is used to transport several commands in a single HTTP request.
@@ -58,6 +59,25 @@ public class CompositeCommand  implements Command, Externalizable {
 			System.arraycopy(_futureResults, 0, r, 0, _futureResults.length);
 			_futureResults = r;
 		}
+		// optimization: if closing object that is not created yet, then remove all commands related to this object
+		if (command instanceof DestroyCommand && reg!=null && reg.getUID()<0L){
+			int s=0, d=0;
+			while (s<_size){	
+				if (_uidexs[s]==reg || _futureResults[s]==reg){
+					s++;
+					continue;
+				}
+				if (s!=d){
+					_commands[d] = _commands[s];
+					_uidexs[d] = _uidexs[s];
+					_futureResults[d] = _futureResults[s];
+				}
+				s++;
+				d++;
+			}
+			_size = d;
+			return null;
+		} 
 		_uidexs[_size] = reg;
 		_commands[_size] = command;		
 		return _futureResults[_size] = new UIDEx(Long.valueOf(-(++_size)), Integer.MIN_VALUE, Integer.MAX_VALUE); 
@@ -117,7 +137,7 @@ public class CompositeCommand  implements Command, Externalizable {
 	public void updateResultUIDEx(Object [] results) {
 		assert results!=null : CompositeCommand.class + " nevere returns null result";
 		if (_futureResults!=null){
-			for (int i=0; i<_futureResults.length && i<results.length; i++){
+			for (int i=0; i<_size && i<results.length; i++){
 				if (results[i] instanceof UIDEx){
 					_futureResults[i].copyFrom((UIDEx) results[i]);
 				}
