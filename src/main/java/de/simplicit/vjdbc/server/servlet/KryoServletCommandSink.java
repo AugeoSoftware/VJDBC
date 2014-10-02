@@ -57,6 +57,7 @@ public class KryoServletCommandSink extends HttpServlet {
 	private static final String PROTOCOL_VERSION = Version.version+PROTOCOL_KRYO;
 
     private CommandProcessor _processor;
+    private long emulatePingTime = 0L;
 
     public KryoServletCommandSink() {
     }
@@ -142,6 +143,7 @@ public class KryoServletCommandSink extends HttpServlet {
 	        }
         }
         _processor = CommandProcessor.getInstance();
+        emulatePingTime = VJdbcConfiguration.singleton().getEmulatePingTime();
     }
 
     public void destroy() {
@@ -160,10 +162,14 @@ public class KryoServletCommandSink extends HttpServlet {
         DeflatingOutput output = null;
         Kryo kryo = null;
         try {
+        	// for testing purposes emulate long ping times between client and server
+        	if (emulatePingTime>0L){
+        		Thread.sleep(emulatePingTime);
+        	}
+
             // Get the method to execute
             String method = httpServletRequest.getHeader(V2_METHOD_IDENTIFIER);
-            Thread.sleep(10L);
-            
+
             if(method != null) {
             	// check the version
             	String clientVersion = httpServletRequest.getHeader(VERSION_IDENTIFIER);

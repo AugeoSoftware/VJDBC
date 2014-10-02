@@ -25,6 +25,8 @@ public class VJdbcConfiguration {
     private RmiConfiguration _rmiConfiguration;
     private List _connections = new ArrayList();
     private static boolean useStreamingResultSet = true;
+    // used for testing purposes only, emulates ping time between client and server
+    private long _emulatePingTime = 0L;
 
     /**
      * overrides the use of the StreamingResultSet to allow other types of
@@ -277,4 +279,13 @@ public class VJdbcConfiguration {
             connectionConfiguration.log();
         }
     }
+
+	public long getEmulatePingTime() {
+		return _emulatePingTime;
+	}
+
+	public void setEmulatePingTime(long emulatePingTime) {
+		this._emulatePingTime = emulatePingTime;
+	}
+
 }
