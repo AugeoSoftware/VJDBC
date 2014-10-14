@@ -41,8 +41,8 @@ public final class VirtualDriver implements Driver {
 //    private static SecureSocketFactory _sslSocketFactory;
     private static boolean _cacheEnabled = false;
 
-    private static final int MAJOR_VERSION = 1;
-    private static final int MINOR_VERSION = 7;
+//    private static final int MAJOR_VERSION = 1;
+//    private static final int MINOR_VERSION = 7;
 
     static {
         try {
@@ -152,11 +152,11 @@ public final class VirtualDriver implements Driver {
     }
 
     public int getMajorVersion() {
-        return MAJOR_VERSION;
+        return Version.majorIntVersion; //MAJOR_VERSION;
     }
 
     public int getMinorVersion() {
-        return MINOR_VERSION;
+        return Version.minorIntVersion; //MINOR_VERSION;
     }
 
     public boolean jdbcCompliant() {
