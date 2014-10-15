@@ -137,6 +137,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 	            _columnLabels[i-1] = metaData.getColumnLabel(i);
 	        }
         }
+        rs.setFetchSize(_rowPacketSize);
         // Create first ResultSet-Part
          _page = new RowPacket(_rowPacketSize /*, _forwardOnly */, 0);
         // Populate it         
