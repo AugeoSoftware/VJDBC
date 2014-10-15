@@ -7,8 +7,10 @@ package de.simplicit.vjdbc.command;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Timer;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
@@ -32,7 +34,7 @@ public class DecoratedCommandSink {
     private CommandSinkListener _listener = new NullCommandSinkListener();
     private CallingContextFactory _callingContextFactory;
     private Timer _timer;
-//    private final ExecutorService _executor;
+    private final ExecutorService _executor;
     private ThreadLocal<CompositeCommand> _compositeCommand = new ThreadLocal<CompositeCommand>();
 
     public DecoratedCommandSink(UIDEx connuid, CommandSink sink, CallingContextFactory ctxFactory) {
@@ -51,7 +53,7 @@ public class DecoratedCommandSink {
             KeepAliveTimerTask task = new KeepAliveTimerTask(this);
             _timer.scheduleAtFixedRate(task, pingPeriod, pingPeriod);
         }
-//        _executor = Executors.newSingleThreadExecutor();
+        _executor = Executors.newSingleThreadExecutor();
     }
 
     public CommandSink getTargetSink()
@@ -65,13 +67,13 @@ public class DecoratedCommandSink {
             _timer.cancel();
             _timer = null;
         }
-//        // Stop executor
-//        _executor.shutdown();
-//        try {
-//			_executor.awaitTermination(60, TimeUnit.SECONDS);
-//		} catch (InterruptedException e) {
-//			_logger.debug("Executor service shotdown has beed interrupted", e);
-//		}
+        // Stop executor
+        _executor.shutdown();
+        try {
+			_executor.awaitTermination(60, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			_logger.debug("Executor service shotdown has beed interrupted", e);
+		}
         // Close down the sink
         _targetSink.close();
     }
@@ -126,6 +128,20 @@ public class DecoratedCommandSink {
     	return compositeCommand.add(reg, cmd);
     }
     
+    public Future<Object> processAsync(final UIDEx reg, final Command cmd, final boolean withCallingContext){
+    	final CallingContext ctx = withCallingContext?_callingContextFactory.create():null;
+    	return _executor.submit(new Callable<Object>() {
+			@Override
+			public Object call() throws Exception {
+		    	try {
+		            _listener.preExecution(cmd);
+		            return _targetSink.process(_connectionUid.getUID(), reg != null ? reg.getUID() : null, cmd, ctx);
+				} finally {
+		            _listener.postExecution(cmd);
+		        }
+			}
+		});
+    }
     
     public int processWithIntResult(UIDEx uid, Command cmd) throws SQLException {
     	return ((Integer)process(uid, cmd, false)).intValue();

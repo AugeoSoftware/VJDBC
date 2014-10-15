@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 public class StreamingResultSet implements ResultSet, Externalizable,KryoSerializable {
     static final long serialVersionUID = 8291019975153433161L;
@@ -50,6 +52,7 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
     /** current page (aka {@link RowPacket})
      * _page.getIndex()*_rowPacketSize +_cursor = current row number */
     private transient RowPacket _page = null;
+    private transient Future<Object> _nextPage;
     private transient int _lastReadColumn = -1;
     /** column values of current page */
     private transient ColumnValues[] _columnValues;
@@ -111,6 +114,9 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
 
     public void setCommandSink(DecoratedCommandSink sink) {
         _commandSink = sink;
+        if (!_lastPartReached){
+        	_nextPage = _commandSink.processAsync(_remainingResultSet, NextRowPacketCommand.INSTANCE, false);
+        }
     }
 
     public void setRemainingResultSetUID(UIDEx reg) {
@@ -931,9 +937,16 @@ public class StreamingResultSet implements ResultSet, Externalizable,KryoSeriali
      */
     private final boolean requestNextRowPacket() throws SQLException {
 		if (!_lastPartReached) {
-			RowPacket rsp = (RowPacket) _commandSink.process(_remainingResultSet, NextRowPacketCommand.INSTANCE);
+			RowPacket rsp;
+			try {
+				rsp = (RowPacket) _nextPage.get();
+			} catch (Exception e) {
+				throw new SQLException(e);
+			}
 			if (rsp.isLastPart()) {
 				_lastPartReached = true;
+			} else {
+	        	_nextPage = _commandSink.processAsync(_remainingResultSet, NextRowPacketCommand.INSTANCE, false);
 			}
 			if (rsp.getRowCount()>0){
 				if (!_forwardOnly) {
