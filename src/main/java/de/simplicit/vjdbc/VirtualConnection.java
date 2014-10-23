@@ -424,6 +424,9 @@ public class VirtualConnection extends VirtualBase implements Connection {
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
         Properties clientProps = ClientInfo.getProperties(null);
         clientProps.put(name, value);
+        if (ClientInfo.VJDBC_FAST_UPDATE.equals(name)){
+        	return;
+        }
         try {
             _sink.process(_objectUid, new ConnectionSetClientInfoCommand(name, value),
 //            		CommandPool.getReflectiveCommand(JdbcInterfaceType.CONNECTION, "setClientInfo",

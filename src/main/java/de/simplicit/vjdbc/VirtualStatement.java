@@ -29,6 +29,7 @@ import de.simplicit.vjdbc.command.StatementUpdateCommand;
 import de.simplicit.vjdbc.command.StatementUpdateExtendedCommand;
 import de.simplicit.vjdbc.serial.StreamingResultSet;
 import de.simplicit.vjdbc.serial.UIDEx;
+import de.simplicit.vjdbc.util.ClientInfo;
 import de.simplicit.vjdbc.util.SQLExceptionHelper;
 
 public class VirtualStatement extends VirtualBase implements Statement {
@@ -40,6 +41,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
     protected int _resultSetType;
     protected boolean _isClosed = false;
     protected boolean _isCloseOnCompletion = false;
+    protected final boolean fastUpdate;
 
     public VirtualStatement(UIDEx reg, Connection connection, DecoratedCommandSink theSink, int resultSetType) {
         super(reg, theSink);
@@ -58,6 +60,7 @@ public class VirtualStatement extends VirtualBase implements Statement {
         // We no longer need the additional values for information, so reset
         // them so they are no longer serialized
         reg.resetValues();
+        fastUpdate = "true".equals(ClientInfo.getProperties(null).getProperty(ClientInfo.VJDBC_FAST_UPDATE));
     }
 
     protected void finalize() throws Throwable {
@@ -82,7 +85,12 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public int executeUpdate(String sql) throws SQLException {
-        return _sink.processWithIntResult(_objectUid, new StatementUpdateCommand(sql));
+        if (fastUpdate) {
+	    	_sink.queue(_objectUid, new StatementUpdateCommand(sql), true);
+			return 0;
+        } else {
+        	return _sink.processWithIntResult(_objectUid, new StatementUpdateCommand(sql));
+        }
     }
 
     public void close() throws SQLException {

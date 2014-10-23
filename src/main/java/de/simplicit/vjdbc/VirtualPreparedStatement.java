@@ -53,7 +53,12 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
 
     public int executeUpdate() throws SQLException {
         reduceParam();
-        return _sink.processWithIntResult(_objectUid, new PreparedStatementUpdateCommand(_paramList));
+        if (fastUpdate) {
+        	_sink.queue(_objectUid, new PreparedStatementUpdateCommand(_paramList),false);
+        	return 0;
+        } else {
+        	return _sink.processWithIntResult(_objectUid, new PreparedStatementUpdateCommand(_paramList));
+        }
     }
 
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
@@ -144,7 +149,12 @@ public class VirtualPreparedStatement extends VirtualStatement implements Prepar
 
     public boolean execute() throws SQLException {
         reduceParam();
-        return _sink.processWithBooleanResult(_objectUid, new PreparedStatementExecuteCommand(_paramList));
+        if (fastUpdate){
+        	_sink.queue(_objectUid, new PreparedStatementExecuteCommand(_paramList), true);
+        	return false;
+        } else {
+        	return _sink.processWithBooleanResult(_objectUid, new PreparedStatementExecuteCommand(_paramList));
+        }
     }
 
     public void addBatch() throws SQLException {

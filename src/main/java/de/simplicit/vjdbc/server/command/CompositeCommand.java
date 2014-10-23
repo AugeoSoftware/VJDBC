@@ -60,24 +60,24 @@ public class CompositeCommand  implements Command, Externalizable {
 			_futureResults = r;
 		}
 		// optimization: if closing object that is not created yet, then remove all commands related to this object
-		if (command instanceof DestroyCommand && reg!=null && reg.getUID()<0L){
-			int s=0, d=0;
-			while (s<_size){	
-				if (_uidexs[s]==reg || _futureResults[s]==reg){
-					s++;
-					continue;
-				}
-				if (s!=d){
-					_commands[d] = _commands[s];
-					_uidexs[d] = _uidexs[s];
-					_futureResults[d] = _futureResults[s];
-				}
-				s++;
-				d++;
-			}
-			_size = d;
-			return null;
-		} 
+//		if (command instanceof DestroyCommand && reg!=null && reg.getUID()<0L){
+//			int s=0, d=0;
+//			while (s<_size){	
+//				if (_uidexs[s]==reg || _futureResults[s]==reg){
+//					s++;
+//					continue;
+//				}
+//				if (s!=d){
+//					_commands[d] = _commands[s];
+//					_uidexs[d] = _uidexs[s];
+//					_futureResults[d] = _futureResults[s];
+//				}
+//				s++;
+//				d++;
+//			}
+//			_size = d;
+//			return null;
+//		} 
 		_uidexs[_size] = reg;
 		_commands[_size] = command;		
 		return _futureResults[_size] = new UIDEx(Long.valueOf(-(++_size)), Integer.MIN_VALUE, Integer.MAX_VALUE); 

@@ -14,6 +14,7 @@ import java.util.StringTokenizer;
 public class ClientInfo {
     public static final String VJDBC_CLIENT_NAME = "vjdbc-client.name";
 	public static final String VJDBC_CLIENT_ADDRESS = "vjdbc-client.address";
+	public static final String VJDBC_FAST_UPDATE = "vjdbc-client.fast.update";
 	
 	private static Log _logger = LogFactory.getLog(ClientInfo.class);
     private static Properties _properties = null;
