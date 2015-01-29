@@ -4,11 +4,11 @@
 
 package de.simplicit.vjdbc.rmi;
 
+import static de.simplicit.vjdbc.util.SQLExceptionHelper.CONNECTION_DOES_NOT_EXIST_STATE;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.CommandSinkListener;
 import de.simplicit.vjdbc.command.DecoratedCommandSink;
 import de.simplicit.vjdbc.command.PingCommand;
-
 import java.sql.SQLException;
 import java.util.TimerTask;
 
@@ -21,6 +21,7 @@ public class KeepAliveTimerTask extends TimerTask implements CommandSinkListener
     private static Command _dummyCommand = PingCommand.INSTANCE;
     private final DecoratedCommandSink _sink;
     private volatile boolean _ignoreNextPing = false;
+    private boolean connectionAlive = true;
 
     public KeepAliveTimerTask(DecoratedCommandSink sink) {
         _sink = sink;
@@ -40,11 +41,15 @@ public class KeepAliveTimerTask extends TimerTask implements CommandSinkListener
         try {
             if(_ignoreNextPing) {
                 _ignoreNextPing = false;
-            } else {
+            } else if (connectionAlive){
                 _sink.process(null, _dummyCommand);
             }
         } catch(SQLException e) {
-            // Ignore it, sink is already closed
+        	if (CONNECTION_DOES_NOT_EXIST_STATE.equals(e.getSQLState())) {
+        		// stop sending ping, because now it is useless
+        		connectionAlive = false;
+        	}
+        	// Ignore exception, because there is nothing we can do here
         }
     }
 }

@@ -12,6 +12,8 @@ import java.util.Iterator;
  */
 public class SQLExceptionHelper {
 
+	public static final String CONNECTION_DOES_NOT_EXIST_STATE = "08003";
+
     public static SQLException wrap(Throwable t) {
  
     	if (t==null || t instanceof SQLException){

@@ -70,7 +70,7 @@ class ConnectionEntry implements ConnectionContext {
     private volatile int _rowPacketSize;
 
     // Statistics
-    private long _lastAccessTimestamp = System.currentTimeMillis();
+    private volatile long _lastAccessTimestamp = System.currentTimeMillis();
     private long _numberOfProcessedCommands = 0;
 
     // Map containing all JDBC-Objects which are created by this Connection

@@ -4,6 +4,8 @@
 
 package de.simplicit.vjdbc.server.command;
 
+import static de.simplicit.vjdbc.util.SQLExceptionHelper.CONNECTION_DOES_NOT_EXIST_STATE;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -25,6 +27,7 @@ import de.simplicit.vjdbc.VJdbcProperties;
 import de.simplicit.vjdbc.command.Command;
 import de.simplicit.vjdbc.command.ConnectionContext;
 import de.simplicit.vjdbc.command.DestroyCommand;
+import de.simplicit.vjdbc.command.PingCommand;
 import de.simplicit.vjdbc.command.StatementCancelCommand;
 import de.simplicit.vjdbc.serial.CallingContext;
 import de.simplicit.vjdbc.serial.UIDEx;
@@ -222,8 +225,12 @@ public class CommandProcessor {
                     _logger.debug("Connection entry already gone, DestroyCommand will be ignored");
                 } else {
                     String msg = "Unknown connection entry " + connuid + " for command " + cmd.toString();
-                    _logger.error(msg);
-                    throw new SQLException(msg);
+                    if (cmd instanceof PingCommand){
+                    	_logger.info(msg);
+                    } else {
+                    	_logger.error(msg);
+                    }
+                    throw new SQLException(msg, CONNECTION_DOES_NOT_EXIST_STATE);
                 }
             }
         } else {
