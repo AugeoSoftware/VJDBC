@@ -68,6 +68,8 @@ class ConnectionEntry implements ConnectionContext {
     private volatile int _compressionThreshold;
     // row packet size for this connection
     private volatile int _rowPacketSize;
+    // name of the user, that own this connection entry
+    private volatile String _userName;
 
     // Statistics
     private volatile long _lastAccessTimestamp = System.currentTimeMillis();
@@ -87,6 +89,7 @@ class ConnectionEntry implements ConnectionContext {
         _compressionMode = _connectionConfiguration.getCompressionModeAsInt();
         _compressionThreshold = _connectionConfiguration.getCompressionThreshold();
         _rowPacketSize = _connectionConfiguration.getRowPacketSize();
+        _userName = clientInfo.getProperty(VJdbcProperties.USER_NAME);
         
         // Put the connection into the JDBC-Object map
         _jdbcObjects.put(connuid, new JdbcObjectHolder(conn, ctx, JdbcInterfaceType.CONNECTION));
@@ -95,27 +98,32 @@ class ConnectionEntry implements ConnectionContext {
     void close() {
         try {
             if(!_connection.isClosed()) {
-                _connection.close();
+            	// DestroyCommand makes sure related jdbcObjects are closed
+            	DestroyCommand.INSTANCE.execute(_connection, this);
+               // _connection.close();
 
                 if(_logger.isDebugEnabled()) {
                     _logger.debug("Closed connection " + _uid);
                 }
             }
 
-            traceConnectionStatistics();
         } catch (SQLException e) {
             _logger.error("Exception during closing connection", e);
         }
     }
 
-    public void closeAllRelatedJdbcObjects() throws SQLException {
+    public void closeAllRelatedJdbcObjects() {
     	for (Map.Entry<Long, JdbcObjectHolder> me: _jdbcObjects.entrySet()){
     		JdbcObjectHolder jdbcObject = me.getValue();
     		// don't act on the Connection itself - this will be done elsewhere
     		if(jdbcObject.getJdbcInterfaceType() == JdbcInterfaceType.CONNECTION)
     			continue;
     		// create a DestroyCommand and act on it
-    		DestroyCommand.INSTANCE.execute(jdbcObject.getJdbcObject(), this);
+    		try {
+				DestroyCommand.INSTANCE.execute(jdbcObject.getJdbcObject(), this);
+			} catch (SQLException e) {
+				_logger.debug("Caught unexpected exception, while closing jdbcObject of type " + jdbcObject.getJdbcInterfaceType(), e);
+			}
     	}
     	_jdbcObjects.clear();    	
     }
@@ -165,6 +173,10 @@ class ConnectionEntry implements ConnectionContext {
 			} catch (ConfigurationException e) {
 				_logger.debug("Ignoring invalid row packet size from client "+_clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS), e);
 			}
+    	} else 
+    		
+    	if (VJdbcProperties.USER_NAME.equals(name)){
+    		_userName = value;
     	}
     }
     
@@ -176,6 +188,10 @@ class ConnectionEntry implements ConnectionContext {
         return _lastAccessTimestamp;
     }
 
+    public String getUserName() {
+    	return _userName;
+    }
+    
     public long getNumberOfProcessedCommands() {
         return _numberOfProcessedCommands;
     }
@@ -339,6 +355,7 @@ class ConnectionEntry implements ConnectionContext {
         _logger.info("  Connection ........... " + _connectionConfiguration.getId());
         _logger.info("  IP address ........... " + _clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_ADDRESS, "n.a."));
         _logger.info("  Host name ............ " + _clientInfo.getProperty(ClientInfo.VJDBC_CLIENT_NAME, "n.a."));
+        _logger.info("  User name ............ " + _userName);
         dumpClientInfoProperties();
         _logger.info("  Last time of access .. " + new Date(_lastAccessTimestamp));
         _logger.info("  Processed commands ... " + _numberOfProcessedCommands);

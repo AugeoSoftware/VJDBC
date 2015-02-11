@@ -4,7 +4,7 @@
   <groupId>de.simplicit</groupId>
   <artifactId>vjdbc</artifactId>
   <packaging>jar</packaging>
-  <version>2.10</version>
+  <version>2.11</version>
   <name>VJDBC JDBC driver (http transport only)</name>
   <url>http://vjdbc.sourceforge.net/</url>
 

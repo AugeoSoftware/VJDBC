@@ -256,20 +256,15 @@ public class CommandProcessor {
     			Iterator<Entry<Long, ConnectionEntry>> it = _connectionEntries.entrySet().iterator();
     			while (it.hasNext()){
     				Entry<Long, ConnectionEntry> me = it.next();
+    				// do not use synchronized(ce) as it might deadlock, because connectionEntry is already locked
     				ConnectionEntry ce = me.getValue();
-    				synchronized(ce){
-    					if (ce!=connectionEntry 
-    							&& userName.equals(ce.getClientInfo().getProperty(VJdbcProperties.USER_NAME))){
-    						
-    						try {
-    							DestroyCommand.INSTANCE.execute(ce.getJDBCObject(me.getKey()), ce);
-    							it.remove();
-    							killedConnectionsCount++;						
-							} catch (SQLException e) {
-								_logger.info("Error on killing connection "+me.getKey(), e);
-							}
-    					}
-    				}    				
+					if (ce!=connectionEntry && userName.equals(ce.getUserName())){    						
+						_logger.info("Killing connection "+me.getKey()+" by request from user "+userName);
+						ce.traceConnectionStatistics();
+						ce.close();
+						it.remove();
+						killedConnectionsCount++;
+					}
     			}    			
 //    		}
     	}
@@ -300,6 +295,7 @@ public class CommandProcessor {
 
                         if(!connentry.isActive() && (idleTime > _occtConfig.getTimeoutInMillis())) {
                             _logger.info("Closing orphaned connection " + key + " after being idle for about " + (idleTime / 1000) + "sec");
+                            connentry.traceConnectionStatistics();
                             // The close method doesn't throw an exception
                             connentry.close();
                             it.remove();
