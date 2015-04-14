@@ -11,6 +11,7 @@ import de.simplicit.vjdbc.serial.UIDEx;
  * a network proxy.  The client must implement a ProxyFactory that can take
  * the proxied object and turn it back into the proper client side JDBC object.
  */
+@Deprecated
 public interface ProxiedObject extends Registerable {
 
     /**

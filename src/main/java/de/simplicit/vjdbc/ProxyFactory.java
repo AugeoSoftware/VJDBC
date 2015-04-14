@@ -12,6 +12,7 @@ import de.simplicit.vjdbc.serial.UIDEx;
  * A factory for turning proxy network objects back into their full JDBC
  * form on the client.
  */
+@Deprecated
 public interface ProxyFactory {
 
     public Object makeJdbcObject(Object proxy) throws SQLException;
