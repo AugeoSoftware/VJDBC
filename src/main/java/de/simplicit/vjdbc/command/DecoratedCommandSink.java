@@ -95,12 +95,12 @@ public class DecoratedCommandSink {
     }
 
     public Object process(UIDEx reg, Command cmd, boolean withCallingContext) throws SQLException {
+    	CompositeCommand compositeCommand = _compositeCommand.get();
     	try {
             CallingContext ctx = null;
             if(withCallingContext) {
                 ctx = _callingContextFactory.create();
             }
-            CompositeCommand compositeCommand = _compositeCommand.get();
             if (compositeCommand!=null){
             	compositeCommand.add(reg, cmd);
             	cmd = compositeCommand;
@@ -111,10 +111,12 @@ public class DecoratedCommandSink {
             if (compositeCommand!=null){
             	compositeCommand.updateResultUIDEx((Object[]) result);
             	result = ((Object[]) result)[compositeCommand.size()-1];
-            	_compositeCommand.set(null);
             }
 			return result;
         } finally {
+            if (compositeCommand!=null){
+            	_compositeCommand.set(null);
+            }
             _listener.postExecution(cmd);
         }
     }

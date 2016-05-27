@@ -94,7 +94,13 @@ public class VirtualStatement extends VirtualBase implements Statement {
     }
 
     public void close() throws SQLException {
-        _sink.queue(_objectUid, DestroyCommand.INSTANCE, true);
+        try {
+        	_sink.queue(_objectUid, DestroyCommand.INSTANCE, true);
+        } catch (IllegalArgumentException e){
+        	// _objectUid is invalid, which means that 
+        	// this statement is not created yet on server and we want to close it
+        	// so ignore this error
+        }
         _isClosed = true;
     }
 

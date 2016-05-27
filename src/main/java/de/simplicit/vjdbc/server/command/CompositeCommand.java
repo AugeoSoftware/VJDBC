@@ -46,8 +46,15 @@ public class CompositeCommand  implements Command, Externalizable {
 	 * @param reg
 	 * @param command
 	 * @return
+	 * @throw {@link IllegalArgumentException} if reg references invalid object.  
 	 */
 	public synchronized UIDEx add(UIDEx reg, Command command){
+		// check UIDEx is valid
+		long x = reg.getUID().longValue();
+		if (x<0L && x<=-(_size+1)){
+			throw new IllegalArgumentException("Invalid reg: "+reg);
+		}		
+		
 		if (_size>=_commands.length){
 			Command[] c = new Command[_commands.length+INCREMENT];
 			System.arraycopy(_commands, 0, c, 0, _commands.length);
