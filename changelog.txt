@@ -7,6 +7,10 @@ OPT = Optimization
 CLN = Cleanup/Refactoring
 OTH = Other
 
+Release 2.XX (made by Augeo)  
+---------------------------
+See Git history of changes.
+
 Release 1.7.0 (06 Feb 2010)
 ---------------------------
 * FEA: Upgraded source base to JDBC4 and JDK 1.6
